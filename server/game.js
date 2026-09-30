@@ -1,5 +1,11 @@
 import { randomInt as secureRandomInt } from "node:crypto";
 import { CATEGORIES, WORDS } from "./words.js";
+import {
+  GAME_TIMING,
+  PROTOCOL_VERSION,
+  assertActionEnvelope,
+  normalizeRoomCode,
+} from "../shared/protocol.js";
 
 const ACTIVE_PHASES = new Set([
   "reveal",
@@ -72,7 +78,7 @@ export class GameStore {
   constructor({
     now = Date.now,
     randomInt = secureRandomInt,
-    graceMs = 60_000,
+    graceMs = GAME_TIMING.disconnectGraceMs,
   } = {}) {
     this.now = now;
     this.randomInt = randomInt;
@@ -124,7 +130,7 @@ export class GameStore {
   join(playerId, input = {}) {
     this.sweep();
     requireThat(typeof input.code === "string", "Enter a room code.");
-    const code = input.code.trim().toUpperCase();
+    const code = normalizeRoomCode(input.code);
     const existing = this.roomFor(playerId);
     requireThat(
       !existing || existing.code === code,
@@ -204,16 +210,7 @@ export class GameStore {
   }
 
   act(playerId, action = {}) {
-    requireThat(
-      action && typeof action === "object" && !Array.isArray(action),
-      "That action is not valid.",
-    );
-    requireThat(
-      typeof action.actionId === "string" &&
-        action.actionId.length >= 1 &&
-        action.actionId.length <= 100,
-      "This action needs a unique action ID. Please refresh and try again.",
-    );
+    assertActionEnvelope(action);
     const receipt = this.receipts.get(playerId)?.get(action.actionId);
     if (receipt !== undefined && this.now() - receipt < RECEIPT_TTL)
       return this.roomFor(playerId);
@@ -450,7 +447,7 @@ export class GameStore {
       turnIndex: 0,
       turnVersion: 1,
       paused: false,
-      phaseDeadline: this.now() + 120_000,
+      phaseDeadline: this.now() + GAME_TIMING.revealMs,
       votes: new Map(),
       candidates: [],
       runoff: false,
@@ -481,7 +478,7 @@ export class GameStore {
     room.round.candidates = [...candidates];
     room.round.runoff = runoff;
     room.round.votes = new Map();
-    room.round.phaseDeadline = this.now() + 90_000;
+    room.round.phaseDeadline = this.now() + GAME_TIMING.voteMs;
   }
 
   closeVote(room) {
@@ -508,7 +505,7 @@ export class GameStore {
       round.accusedId = leaders[0];
       if (round.accusedId === round.imposterId) {
         room.phase = "guess";
-        round.phaseDeadline = this.now() + 60_000;
+        round.phaseDeadline = this.now() + GAME_TIMING.guessMs;
       } else
         this.finish(room, "imposter", "The group accused an innocent player.");
     }
@@ -622,6 +619,8 @@ export class GameStore {
     }
     const inVote = room.phase === "voting" || room.phase === "runoff";
     return {
+      protocolVersion: PROTOCOL_VERSION,
+      disconnectGraceMs: this.graceMs,
       code: room.code,
       hostId: room.hostId,
       phase: room.phase,

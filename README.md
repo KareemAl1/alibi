@@ -37,11 +37,12 @@ The starter collection is curated locally and includes 120 words across six appr
 ## Reconnects and interruptions
 
 - Refreshing restores your player, room, and role through a random HttpOnly session cookie. Losing or clearing that cookie loses access to that seat. Multiple tabs share one seat; presence drops only when its last connection closes.
-- A disconnected player has **60 seconds** to reconnect. The host role transfers immediately to the earliest connected member and does not automatically transfer back. During grace, the host can advance a stalled clue turn.
+- A disconnected player has **120 seconds** after detected connection loss to reconnect. The host role transfers immediately to the earliest connected member and does not automatically transfer back. During grace, the host can advance a stalled clue turn. This gives short trips to Discord more time; readiness, voting and guess deadlines still run while a phone is away.
 - If a round participant leaves explicitly or fails to reconnect within grace, the round is abandoned with a visible explanation and no winner. Alibi does not change the electorate or invent missing votes.
 - Reveal readiness expires after **120 seconds**; an incomplete reveal abandons the round. Voting expires after **90 seconds** per ballot; an incomplete ballot abandons the round. A caught imposter has **60 seconds** to guess; no guess awards the group a win. If that imposter's disconnect grace expires first, the round is abandoned instead.
 - Late arrivals wait for the next round and receive no current-round role, word, or category. They can see the public room state and the final result.
 - Sessions expire after **24 hours**. Empty rooms expire after **30 minutes**. Server restarts clear all rooms and sessions.
+- Returning to a visible page requests a fresh, personalized server snapshot before enabling actions. It does not send Leave, extend deadlines, or replay offline clicks. If the session has expired, the persistent reload link lets the player create a new session and rejoin.
 
 ## Architecture and security boundaries
 
@@ -52,6 +53,8 @@ This is a single Node.js process with Express and Socket.IO. Express serves the 
 Each snapshot is projected for its recipient. The imposter receives no secret word before results, including while making the final guess. Hosts do not receive other players' roles. Open ballots expose a submission count, never vote choices or candidate totals. Completed ballots are public; the full round result is public after it ends. This protects against inspecting network traffic for unauthorized information, but cannot prevent friends from voluntarily sharing their private cards outside the app.
 
 The detailed transition contract is in [PLAN.md](PLAN.md). Work completed, verification, and remaining tasks are recorded in [PROGRESS.md](PROGRESS.md).
+
+`shared/protocol.js` holds platform-neutral public timing constants, a versioned action-envelope typedef/builder, basic shape validation and room-code normalization. The server and browser both use it. The word collection and all authoritative checks remain server-only. [FUTURE-MOBILE.md](FUTURE-MOBILE.md) describes an installable web app first, then shared-room store apps after playtesting; no mobile project or service worker has been added.
 
 The original interrogation-table illustration is generated artwork. The avatar set is a small local SVG system. All visual assets ship with the app; it needs no font service, image CDN, voice integration, or AI service at runtime. Client preferences store only nickname/avatar locally; roles and words are never persisted in browser storage. `npm run format` formats the source for maintenance. Official API references used for the implementation: [Socket.IO server options](https://socket.io/docs/v4/server-options/), [Socket.IO client options](https://socket.io/docs/v4/client-options/), and [Express API](https://expressjs.com/en/5x/api/).
 
@@ -67,9 +70,11 @@ The Node tests cover meaningful engine rules and run real HTTP/Socket.IO clients
 npm run test:browser
 ```
 
-The browser smoke check requires Google Chrome installed on the machine and uses Playwright's `chrome` channel in headless mode. It exercises the interface in independent browser contexts. Consult `PROGRESS.md` for the checks actually completed in this environment; the existence of a test is not evidence that it passed.
+The browser smoke check requires Google Chrome installed on the machine and uses Playwright's `chrome` channel in headless mode. It drives actual UI actions in four independent Chrome cookie sessions, observes their real network messages, and saves screenshots plus `browser-report.json` under `artifacts/review/`. It covers complete rounds/rematches, private partial ballots, refresh, Chrome offline/online reconnect, and host tab closure/reopening/departure. This is browser automation, separate from Node engine/socket tests; it does not prove physical-phone suspension behavior. Consult `PROGRESS.md` for actual outcomes.
 
 ## Hosting requirements and current limits
+
+The exact architecture has a prepared [Render configuration](render.yaml) and [deployment guide](DEPLOYMENT.md), including current account/cost requirements and pre-publication checks. Nothing has been published. The proposed single service currently starts at $7/month base plus possible usage, and needs Render billing and Git repository access before deployment.
 
 For friends on different networks, this version needs a long-running Node.js host, a public HTTPS address, and a reverse proxy or platform that supports WebSockets. Serve the browser and API from the same origin. Configure these environment variables before starting:
 

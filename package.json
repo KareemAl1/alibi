@@ -9,7 +9,7 @@
     "dev": "node --watch server/index.js",
     "test": "node --test test/*.test.js",
     "test:browser": "node test/browser-smoke.js",
-    "format": "prettier --write public/*.{js,css,html} server/*.js test/*.js *.md package.json"
+    "format": "prettier --write public/*.{js,css,html} server/*.js shared/*.js test/*.js *.md package.json render.yaml"
   },
   "engines": {
     "node": ">=22"

@@ -1,0 +1,23 @@
+# Paid, single-process hosting for the existing Express + Socket.IO app.
+# See DEPLOYMENT.md before creating this service: expected base cost is $7/month.
+services:
+  - type: web
+    name: alibi
+    runtime: node
+    region: virginia
+    plan: 0.5c-512mb
+    numInstances: 1
+    autoDeployTrigger: "off"
+    buildCommand: npm ci --omit=dev
+    startCommand: node server/index.js
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: HOST
+        value: 0.0.0.0
+      - key: PUBLIC_ORIGIN
+        fromService:
+          type: web
+          name: alibi
+          envVarKey: RENDER_EXTERNAL_URL

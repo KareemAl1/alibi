@@ -5,6 +5,7 @@ import { io } from "socket.io-client";
 import { createAlibiServer } from "../server/index.js";
 import { GameStore } from "../server/game.js";
 import { CATEGORIES } from "../server/words.js";
+import { GAME_TIMING } from "../shared/protocol.js";
 
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -460,6 +461,7 @@ test("refresh uses the same session, multiple tabs preserve presence, host disco
     () => !f.host.state.players.find((item) => item.id === player.id).connected,
     "last-tab disconnect",
   );
+  f.advanceTime(90_000);
   await f.connectClient(player);
   await until(
     () => f.host.state.players.find((item) => item.id === player.id).connected,
@@ -477,6 +479,37 @@ test("refresh uses the same session, multiple tabs preserve presence, host disco
     "reconnected host observes new ownership",
   );
   assert.equal(f.host.state.me.isHost, false);
+  assertPrivate(round);
+});
+
+test("foreground state sync emits a fresh private snapshot without mutating the game", async (t) => {
+  const f = await fixture(t);
+  const round = await f.start();
+  await f.toDiscussion(round);
+  await f.act(f.host, "vote-start");
+  await f.act(round.insiders[0], "vote", { targetId: round.imposter.id });
+  for (const player of [round.imposter, round.insiders[0]]) {
+    const before = structuredClone(player.state);
+    const count = player.states.length;
+    const ack = await f.raw(player, "state:sync", {});
+    assert.equal(ack.ok, true);
+    await until(() => player.states.length > count, "fresh unchanged snapshot");
+    assert.deepEqual(player.state, before);
+    assert.equal(player.state.voting.submitted, 1);
+    assert.deepEqual(player.state.ballots, []);
+    assert.equal(JSON.stringify(player.state).includes("targetId"), false);
+  }
+  const count = round.imposter.states.length;
+  const identityAttempt = await f.raw(round.imposter, "state:sync", {
+    playerId: round.insiders[0].id,
+  });
+  if (identityAttempt.ok) {
+    await until(
+      () => round.imposter.states.length > count,
+      "session-bound sync snapshot",
+    );
+    assert.equal(round.imposter.state.me.id, round.imposter.id);
+  }
   assertPrivate(round);
 });
 
@@ -530,7 +563,6 @@ test("a disconnected participant whose grace expires abandons the round without 
   const f = await fixture(t);
   const round = await f.start();
   await f.toDiscussion(round);
-  await f.act(f.host, "vote-start");
   f.clients[1].socket.disconnect();
   await until(
     () =>
@@ -538,12 +570,13 @@ test("a disconnected participant whose grace expires abandons the round without 
         .connected,
     "disconnect recorded",
   );
-  f.advanceTime(60_001);
+  f.advanceTime(GAME_TIMING.disconnectGraceMs + 1);
   await until(
     () => f.host.state.phase === "results",
     "expired-grace broadcast",
   );
   assert.equal(f.host.state.result.winner, null);
+  assert.match(f.host.state.result.reason, /seat expired/);
   assert.equal(f.host.state.voting, null);
   assert.ok(
     !f.host.state.result.ballots.some((ballot) => ballot.votes.length),

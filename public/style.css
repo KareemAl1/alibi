@@ -15,6 +15,459 @@
   text-underline-offset: 3px;
   font-weight: 650;
 }
+
+/* Readability pass: keep the case-file identity, give the useful text more room. */
+.connection,
+.text-button,
+.small,
+.form-note,
+.card-footnote,
+.player-status,
+.you,
+.section-title > span,
+.turn-list .section-title > span,
+.settings-line,
+.room-tip,
+.deadline,
+.waiting-label,
+.readiness,
+.role-label,
+.role-content p,
+.role-content .role-hint,
+.next-categories,
+.ballot-details > summary,
+.ballot-details > summary > span,
+.ballot > div,
+.result-reason,
+.reveal-imposter small,
+.voice-note p,
+.rules,
+.fineprint {
+  font-size: 0.875rem;
+}
+.fineprint {
+  font-size: 0.875rem !important;
+}
+.room-bar .eyebrow,
+.paper-top .eyebrow,
+.private-card .eyebrow,
+.stage .eyebrow,
+.speaking-label,
+.host-controls > span {
+  font-size: 0.75rem;
+  letter-spacing: 0.12em;
+}
+.room-code {
+  font-size: 1.2rem;
+  min-height: 44px;
+}
+.room-bar .button,
+.room-actions .text-button {
+  font-size: 0.875rem;
+  min-height: 44px;
+}
+.button,
+.reveal-button,
+.host-controls .button {
+  font-size: 1rem;
+  min-height: 48px;
+}
+.paper .muted,
+.stage p,
+.room-heading p,
+.voice-note b,
+.vote-progress,
+.final-guess,
+.result-next > p {
+  font-size: 1rem;
+}
+.category {
+  padding: 14px;
+  gap: 14px;
+}
+.category-copy {
+  min-width: 0;
+}
+.category b {
+  font-size: 1rem;
+}
+.category small {
+  display: block;
+  font-size: 0.875rem;
+  line-height: 1.45;
+  color: #62665b;
+}
+.category .category-plain {
+  color: #915030;
+  font-weight: 650;
+  margin-top: 3px;
+}
+.category .category-description {
+  margin-top: 3px;
+}
+.category-icon {
+  font-size: 1.5rem;
+  flex-shrink: 0;
+}
+.next-categories .category-plain {
+  color: #efb991;
+}
+.next-categories .category-description {
+  color: #b4b9ab;
+}
+.player-tile {
+  gap: 16px;
+  padding: 18px;
+  min-height: 100px;
+}
+.player-tile .avatar {
+  width: 64px;
+  height: 64px;
+}
+.player-tile b {
+  font-size: 1.075rem;
+}
+.player-tile .player-status {
+  font-size: 0.875rem;
+  color: #bdc1b5;
+}
+.you {
+  font-size: 0.8rem;
+  color: #b9bdb0;
+}
+.players-section .section-title h3,
+.turn-list h3 {
+  font-size: 1.125rem;
+}
+.turn-row {
+  display: grid;
+  grid-template-columns: 22px 46px minmax(0, 1fr) auto;
+  gap: 11px;
+  padding: 14px 10px;
+}
+.turn-row.current {
+  background: #3d3329;
+  border-color: var(--orange);
+  box-shadow: inset 3px 0 var(--orange);
+}
+.avatar.mini {
+  width: 46px;
+  height: 46px;
+}
+.turn-row b {
+  font-size: 1rem;
+}
+.turn-status {
+  font-size: 0.8rem;
+}
+.order-number {
+  font-size: 0.8rem;
+}
+.spotlight {
+  width: 170px;
+  height: 180px;
+}
+.avatar.speaker-avatar {
+  width: 132px;
+  height: 132px;
+}
+.up-next {
+  font-size: 0.75rem;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.up-next b {
+  font-size: 1rem;
+}
+.vote-candidate {
+  padding: 19px 12px;
+}
+.vote-candidate .avatar {
+  width: 64px;
+  height: 64px;
+}
+.vote-candidate b {
+  font-size: 1rem;
+}
+.vote-candidate > span {
+  font-size: 0.8rem;
+}
+.role-content p {
+  color: #626758;
+}
+.concealed p {
+  font-size: 0.875rem;
+}
+.card-footnote {
+  color: #666c5f;
+}
+.action-dock {
+  display: none;
+}
+
+@media (max-width: 760px) {
+  html {
+    scroll-padding-bottom: calc(125px + env(safe-area-inset-bottom));
+  }
+  body {
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+  }
+  .site-header {
+    padding-top: env(safe-area-inset-top);
+    min-height: calc(72px + env(safe-area-inset-top));
+    height: auto;
+    padding-bottom: 12px;
+  }
+  .site-header .brand {
+    margin-top: 10px;
+  }
+  .connection {
+    font-size: 0.8rem;
+  }
+  .room-bar {
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .room-actions {
+    gap: 10px;
+  }
+  .room-code {
+    font-size: 1.125rem;
+  }
+  .room-bar .button,
+  .room-actions .text-button {
+    font-size: 0.875rem;
+    padding: 10px;
+  }
+  .category-list {
+    grid-template-columns: 1fr;
+  }
+  .category small {
+    display: block;
+  }
+  .category b {
+    font-size: 1rem;
+  }
+  .category-icon {
+    width: 26px;
+    font-size: 1.5rem;
+  }
+  .player-tile {
+    padding: 15px 12px;
+    gap: 12px;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .player-tile .avatar {
+    width: 64px;
+    height: 64px;
+  }
+  .player-tile b {
+    font-size: 1rem;
+  }
+  .player-tile.empty {
+    flex-direction: row;
+    align-items: center;
+  }
+  .players-grid {
+    gap: 12px;
+  }
+  .phase-steps {
+    gap: 8px;
+    padding: 20px 0;
+  }
+  .phase-steps > div {
+    display: block;
+    font-size: 0.8rem;
+    text-align: center;
+    padding-bottom: 12px;
+  }
+  .phase-steps > div span {
+    display: block;
+    margin-bottom: 4px;
+    font-size: 0.75rem;
+  }
+  .game-grid aside {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .turn-list {
+    order: 0;
+  }
+  .private-card {
+    order: 1;
+  }
+  .game-grid > div > .private-card {
+    margin-bottom: 22px;
+  }
+  main[data-phase="reveal"] .stage {
+    min-height: 240px;
+    padding: 28px 20px;
+  }
+  main[data-phase="reveal"] .stage-icon {
+    display: none;
+  }
+  .turn-list h3 {
+    font-size: 1.125rem;
+  }
+  .turn-row b {
+    font-size: 1rem;
+  }
+  .turn-row .order-number {
+    display: block;
+  }
+  .turn-status {
+    font-size: 0.8rem;
+  }
+  .stage {
+    padding: 30px 20px;
+  }
+  .stage p {
+    font-size: 1rem;
+  }
+  .spotlight {
+    height: 160px;
+    margin-top: 15px;
+  }
+  .avatar.speaker-avatar {
+    width: 120px;
+    height: 120px;
+  }
+  .up-next {
+    margin-top: 24px;
+    padding-top: 18px;
+  }
+  .vote-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+  .vote-candidate {
+    padding: 18px 9px;
+  }
+  .vote-candidate .avatar {
+    width: 64px;
+    height: 64px;
+  }
+  .host-controls {
+    flex-wrap: wrap;
+  }
+  .host-controls > span {
+    width: 100%;
+    text-align: center;
+  }
+  .host-controls .button {
+    font-size: 0.875rem;
+    min-height: 44px;
+  }
+  .private-card .eyebrow {
+    font-size: 0.75rem;
+  }
+  .reveal-button {
+    min-height: 48px;
+    font-size: 1rem;
+  }
+  .ballot > div {
+    font-size: 0.875rem;
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+    gap: 10px;
+    overflow-wrap: anywhere;
+  }
+  .ballot-details > summary > span {
+    float: none;
+    display: block;
+    padding-top: 4px;
+  }
+  .rules {
+    font-size: 0.875rem;
+  }
+  .rules summary {
+    min-height: 44px;
+  }
+  .rules summary span {
+    float: none;
+    display: block;
+    margin-top: 4px;
+  }
+  .action-dock {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 5;
+    padding: 10px max(18px, env(safe-area-inset-right))
+      calc(12px + env(safe-area-inset-bottom))
+      max(18px, env(safe-area-inset-left));
+    background: #191b20f5;
+    border-top: 1px solid #65503e;
+    box-shadow: 0 -8px 28px #0003;
+  }
+  .action-dock .button {
+    width: 100%;
+    max-width: 600px;
+    margin: 0 auto;
+    min-height: 52px;
+    font-size: 1rem;
+  }
+  .dock-caption {
+    text-align: center;
+    font-size: 0.8rem;
+    color: #c9c8ba;
+  }
+  body.has-action-dock {
+    padding-bottom: calc(120px + env(safe-area-inset-bottom));
+  }
+  body.has-action-dock .toast {
+    bottom: calc(122px + env(safe-area-inset-bottom));
+  }
+  input {
+    font-size: 1rem;
+  }
+  .avatar-option {
+    min-width: 48px;
+    min-height: 48px;
+  }
+  .avatar-picker > div {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+  }
+  .avatar-option .avatar {
+    width: 42px;
+    height: 42px;
+  }
+}
+
+@media (max-width: 360px) {
+  .room-bar {
+    align-items: stretch;
+  }
+  .room-bar > div:first-child {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+  }
+  .room-actions {
+    justify-content: space-between;
+    width: 100%;
+  }
+  .turn-row {
+    grid-template-columns: 16px 40px minmax(0, 1fr) auto;
+    gap: 7px;
+    padding-left: 4px;
+    padding-right: 4px;
+  }
+  .avatar.mini {
+    width: 40px;
+    height: 40px;
+  }
+}
 @media (max-width: 440px) {
   .avatar-picker > div {
     display: grid;

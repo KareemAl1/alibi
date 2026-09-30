@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { GameStore, normalizeGuess } from "../server/game.js";
 import { CATEGORIES, WORDS } from "../server/words.js";
+import { GAME_TIMING } from "../shared/protocol.js";
 
 function setup(count = 4, options = {}) {
   let time = 1_000;
@@ -510,17 +511,22 @@ test("late arrivals have no secrets, cannot participate, and join the next round
   assert.equal(game.store.view("late").me.eligible, true);
 });
 
-test("reconnecting restores the seat and private role without taking back host control", () => {
+test("default two-minute grace restores the seat after a longer app switch without taking back host control", () => {
   const game = setup();
+  assert.equal(GAME_TIMING.disconnectGraceMs, 120_000);
+  assert.equal(game.store.graceMs, GAME_TIMING.disconnectGraceMs);
   game.start();
+  game.ready();
   const before = game.store.view(game.ids[0]);
   game.store.disconnect(game.ids[0]);
   assert.equal(game.room.hostId, game.ids[1]);
   assert.equal(
     game.store.view(game.ids[1]).players[0].disconnectDeadline,
-    61_000,
+    1_000 + GAME_TIMING.disconnectGraceMs,
   );
-  game.tick(59_000);
+  game.tick(90_000);
+  assert.equal(game.room.phase, "clues");
+  assert.ok(game.store.roomFor(game.ids[0]), "seat survives beyond one minute");
   game.store.connect(game.ids[0]);
   const after = game.store.view(game.ids[0]);
   assert.equal(after.me.role, before.me.role);
@@ -533,8 +539,9 @@ test("reconnecting restores the seat and private role without taking back host c
 test("disconnect expiry abandons active rounds, preserves result roster, and removes membership", () => {
   const game = setup();
   game.start();
+  game.ready();
   game.store.disconnect(game.ids[2]);
-  game.tick(60_000);
+  game.tick(GAME_TIMING.disconnectGraceMs);
   assert.equal(game.room.phase, "results");
   assert.equal(game.store.view(game.ids[0]).result.winner, null);
   assert.match(game.store.view(game.ids[0]).result.reason, /seat expired/);
@@ -595,7 +602,7 @@ test("guess timeout forfeits to the group, but coincident disconnect expiry aban
   game.votes([game.ids[1], game.ids[0], game.ids[0], game.ids[0]]);
   game.tick(60_000);
   assert.equal(game.store.view(game.ids[0]).result.winner, "group");
-  const disconnected = setup();
+  const disconnected = setup(4, { graceMs: 60_000 });
   disconnected.voting();
   disconnected.votes([
     disconnected.ids[1],
@@ -611,10 +618,33 @@ test("guess timeout forfeits to the group, but coincident disconnect expiry aban
   );
 });
 
+test("disconnect grace does not extend ballot or final-guess deadlines", () => {
+  const ballot = setup();
+  ballot.voting();
+  ballot.store.disconnect(ballot.ids[2]);
+  ballot.tick(90_000);
+  assert.equal(ballot.room.phase, "results");
+  assert.equal(ballot.room.round.result.winner, null);
+  assert.match(ballot.room.round.result.reason, /ballot deadline/);
+  assert.equal(ballot.room.players.get(ballot.ids[2]).departed, false);
+  assert.ok(ballot.store.roomFor(ballot.ids[2]));
+
+  const guess = setup();
+  guess.voting();
+  guess.votes([guess.ids[1], guess.ids[0], guess.ids[0], guess.ids[0]]);
+  guess.store.disconnect(guess.ids[0]);
+  guess.tick(60_000);
+  assert.equal(guess.room.phase, "results");
+  assert.equal(guess.room.round.result.winner, "group");
+  assert.match(guess.room.round.result.reason, /ran out of time/);
+  assert.equal(guess.room.players.get(guess.ids[0]).departed, false);
+  assert.ok(guess.store.roomFor(guess.ids[0]));
+});
+
 test("empty rooms expire 30 minutes after their last reserved seat leaves", () => {
   const game = setup(1);
   game.store.disconnect(game.ids[0]);
-  game.tick(60_000);
+  game.tick(GAME_TIMING.disconnectGraceMs);
   assert.equal(game.room.hostId, null);
   game.tick(30 * 60_000 - 1);
   assert.ok(game.store.rooms.has(game.room.code));

@@ -108,15 +108,19 @@ export async function createAlibiServer({
     res.json({ playerId: session.playerId });
   });
   app.use(express.static(publicPath, { index: "index.html", maxAge: 0 }));
+  // Deliberately expose this one public contract, never the server source/word pool.
+  app.get("/shared/protocol.js", (_req, res) =>
+    res.sendFile(
+      fileURLToPath(new URL("../shared/protocol.js", import.meta.url)),
+    ),
+  );
   app.use((err, _req, res, _next) =>
-    res
-      .status(err.status || 500)
-      .json({
-        error:
-          err.status === 413
-            ? "That request is too large."
-            : "The request could not be processed.",
-      }),
+    res.status(err.status || 500).json({
+      error:
+        err.status === 413
+          ? "That request is too large."
+          : "The request could not be processed.",
+    }),
   );
 
   const io = new Server(httpServer, {
@@ -157,9 +161,10 @@ export async function createAlibiServer({
     store.connect(id);
     socket.emit(
       "catalog",
-      CATEGORIES.map(({ id, label, description, icon }) => ({
+      CATEGORIES.map(({ id, label, plainLabel, description, icon }) => ({
         id,
         label,
+        plainLabel,
         description,
         icon,
       })),
@@ -191,6 +196,7 @@ export async function createAlibiServer({
     handle("room:create", (payload) => store.create(id, payload));
     handle("room:join", (payload) => store.join(id, payload));
     handle("action", (payload) => store.act(id, payload));
+    handle("state:sync", () => previousStates.delete(socket));
     socket.on("disconnect", () => {
       tabs.delete(socket.id);
       if (!tabs.size) {

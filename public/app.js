@@ -1,4 +1,9 @@
 import { AVATARS, avatar } from "./avatars.js";
+import {
+  GAME_TIMING,
+  createActionEnvelope,
+  normalizeRoomCode,
+} from "/shared/protocol.js";
 
 const app = document.querySelector("#app");
 const status = document.querySelector("#connection");
@@ -21,11 +26,13 @@ const actionId = () =>
 let state = null,
   socket,
   connected = false,
+  synced = false,
   catalog = [],
   busy = false,
   revealed = false,
   selectedVote = "",
   toastTimer;
+let syncPending = false;
 let lastRenderKey = "";
 let nickname = "",
   avatarId = 0,
@@ -40,9 +47,16 @@ try {
 }
 const name = (id) =>
   state?.players.find((p) => p.id === id)?.nickname || "Departed player";
-const cat = (id) => catalog.find((c) => c.id === id)?.label || id || "Mystery";
+const cat = (id) => {
+  const category = catalog.find((c) => c.id === id);
+  return category
+    ? `${category.plainLabel || category.label} · ${category.label}`
+    : id || "Mystery";
+};
+const graceLabel = () =>
+  `${Math.round((state?.disconnectGraceMs || GAME_TIMING.disconnectGraceMs) / 60_000)} minutes`;
 const disabled = (condition) =>
-  condition || busy || !connected ? "disabled" : "";
+  condition || busy || !connected || !synced ? "disabled" : "";
 const button = (text, action, options = "") =>
   `<button type="button" class="button" data-action="${action}" ${disabled(false)} ${options}>${text}</button>`;
 const timer = (deadline) =>
@@ -74,7 +88,7 @@ function roomHeader() {
           )
           .join(
             " · ",
-          )}. Seats are held for 60 seconds; an expired round participant ends the round.</div>`
+          )}. Seats are held for ${graceLabel()}. Round deadlines still apply.</div>`
       : ""
   }`;
 }
@@ -88,7 +102,7 @@ function playerGrid() {
 }
 
 function categories() {
-  return `<div class="category-list">${catalog.map((c, i) => `<label class="category ${state.categories.includes(c.id) ? "checked" : ""}"><input type="checkbox" name="category" value="${esc(c.id)}" ${state.categories.includes(c.id) ? "checked" : ""} ${disabled(!state.me.isHost)}><span class="category-icon" aria-hidden="true">${["✦", "◒", "♧", "⌂", "◎", "♫", "◈", "✳"][i % 8]}</span><span><b>${esc(c.label)}</b><small>${esc(c.description || "")}</small></span><span class="check" aria-hidden="true">${state.categories.includes(c.id) ? "✓" : "+"}</span></label>`).join("")}</div>`;
+  return `<div class="category-list">${catalog.map((c, i) => `<label class="category ${state.categories.includes(c.id) ? "checked" : ""}"><input type="checkbox" name="category" value="${esc(c.id)}" ${state.categories.includes(c.id) ? "checked" : ""} ${disabled(!state.me.isHost)}><span class="category-icon" aria-hidden="true">${["✦", "◒", "♧", "⌂", "◎", "♫", "◈", "✳"][i % 8]}</span><span class="category-copy"><b>${esc(c.label)}</b><small class="category-plain">${esc(c.plainLabel || c.label)}</small><small class="category-description">${esc(c.description || "")}</small></span><span class="check" aria-hidden="true">${state.categories.includes(c.id) ? "✓" : "+"}</span></label>`).join("")}</div>`;
 }
 
 function lobby() {
@@ -190,11 +204,17 @@ function render() {
         )
       : new Map();
   lastRenderKey = renderKey;
-  status.className = `connection ${connected ? "live" : "offline"}`;
-  status.textContent = connected ? "Connected · let’s play" : "Reconnecting…";
-  const offline = !connected
-    ? `<div class="connection-banner" role="status">Reconnecting… Your seat is held for 60 seconds after a lost connection. <a href="${esc(location.pathname + location.search)}">Reload to try again</a>.</div>`
-    : "";
+  status.className = `connection ${connected && synced ? "live" : "offline"}`;
+  status.textContent =
+    connected && synced
+      ? "Connected · let’s play"
+      : connected
+        ? "Updating your room…"
+        : "Reconnecting…";
+  const offline =
+    !connected || !synced
+      ? `<div class="connection-banner" role="status">${connected ? "Checking the latest room state…" : "Reconnecting…"} Your seat is held for ${graceLabel()} after a lost connection. Voting and guess timers keep running. <a href="${esc(location.pathname + location.search)}">Reload to try again</a>.</div>`
+      : "";
   app.innerHTML =
     offline +
     (!state
@@ -204,6 +224,8 @@ function render() {
         : state.phase === "results"
           ? results()
           : `${roomHeader()}${phaseSteps()}${!state.me.eligible ? '<div class="notice">You joined during a round. Your seat is saved for the next one.</div>' : ""}<div class="game-grid"><div>${mainStage()}</div><aside>${privateCard()}${turnList()}</aside></div>`);
+  app.dataset.phase = state?.phase || "entry";
+  arrangePhoneControls();
   const announcement =
     state?.phase === "clues"
       ? `${state.turn.paused ? "Round paused." : state.turn.currentId === state.me.id ? "Your turn to give a clue." : `Waiting for ${name(state.turn.currentId)} to give a clue.`}`
@@ -266,7 +288,7 @@ function updateTimers() {
 setInterval(updateTimers, 1000);
 
 async function send(event, payload) {
-  if (!connected || busy) return;
+  if (!connected || !synced || busy) return;
   const focusKey = document.activeElement?.dataset?.focusKey;
   busy = true;
   render();
@@ -290,14 +312,73 @@ async function send(event, payload) {
 }
 function act(type, extra = {}) {
   if (!state) return;
-  return send("action", {
-    type,
-    actionId: actionId(),
-    code: state.code,
-    roundId: state.roundId,
-    turnId: state.turn?.id,
-    votingId: state.voting?.id,
-    ...extra,
+  return send("action", createActionEnvelope(state, type, actionId(), extra));
+}
+
+// Reposition the real control, preserving its handler and accessible name.
+// The game itself remains entirely independent of screen size and platform.
+const phoneLayout = matchMedia("(max-width: 760px)");
+function arrangePhoneControls() {
+  document.body.classList.remove("has-action-dock");
+  if (!state || !phoneLayout.matches) return;
+  if (state.phase === "reveal") {
+    const card = app.querySelector(".private-card");
+    if (card) app.querySelector(".game-grid > div")?.prepend(card);
+  }
+  const selector = {
+    lobby: '[data-action="start"]',
+    results: '[data-action="start"]',
+    reveal: '[data-action="ready"]',
+    clues: '[data-action="done"]',
+    discussion: '[data-action="vote-start"]',
+    voting: "[data-submit-vote]",
+    runoff: "[data-submit-vote]",
+    guess: "#guess-form button",
+  }[state.phase];
+  const primary = selector && app.querySelector(selector);
+  if (!primary) return;
+  if (primary.form) primary.setAttribute("form", primary.form.id);
+  const dock = document.createElement("div");
+  dock.className = "action-dock";
+  const caption = document.createElement("span");
+  caption.className = "dock-caption";
+  caption.textContent =
+    state.phase === "clues"
+      ? "Your turn · give your clue aloud"
+      : state.phase === "reveal"
+        ? "Read your private card first"
+        : ["voting", "runoff"].includes(state.phase)
+          ? state.me.hasVoted
+            ? "Your vote is private until the ballot closes"
+            : "Choose a suspect above, then lock your vote"
+          : state.phase === "guess"
+            ? "One final guess · enter it above"
+            : "Same room. All your friends.";
+  dock.append(caption, primary);
+  app.append(dock);
+  document.body.classList.add("has-action-dock");
+}
+phoneLayout.addEventListener("change", render);
+
+function synchronize() {
+  if (!socket || document.hidden || syncPending) return;
+  synced = false;
+  revealed = false;
+  render();
+  if (!socket.connected) {
+    socket.connect();
+    return;
+  }
+  syncPending = true;
+  socket.timeout(7000).emit("state:sync", {}, (error, reply) => {
+    syncPending = false;
+    if (error || !reply?.ok) {
+      notify(
+        reply?.error ||
+          "Could not refresh the room. Reconnect before taking your turn.",
+      );
+      render();
+    }
   });
 }
 
@@ -328,7 +409,10 @@ app.addEventListener("click", async (event) => {
     }
   } else if (el.dataset.action) {
     if (el.dataset.action === "ready") revealed = false;
-    await act(el.dataset.action);
+    await act(
+      el.dataset.action,
+      el.dataset.action === "pause" ? { paused: !state.turn.paused } : {},
+    );
   }
 });
 app.addEventListener("input", (event) => {
@@ -355,17 +439,22 @@ app.addEventListener("submit", async (event) => {
     await send(mode === "create" ? "room:create" : "room:join", {
       nickname: nickname.trim(),
       avatar: avatarId,
-      code: roomCode.trim().toUpperCase(),
+      code: normalizeRoomCode(roomCode),
     });
   }
   if (event.target.id === "guess-form") await act("guess", { guess });
 });
 document.addEventListener("visibilitychange", () => {
-  if (document.hidden && revealed) {
+  if (document.hidden) {
     revealed = false;
+    synced = false;
     render();
-  }
+  } else synchronize();
 });
+window.addEventListener("pageshow", (event) => {
+  if (event.persisted) synchronize();
+});
+window.addEventListener("online", synchronize);
 window.addEventListener("blur", () => {
   if (revealed) {
     revealed = false;
@@ -392,10 +481,13 @@ async function boot() {
     });
     socket.on("connect", () => {
       connected = true;
+      synced = false;
       render();
     });
     socket.on("disconnect", () => {
       connected = false;
+      synced = false;
+      syncPending = false;
       revealed = false;
       render();
     });
@@ -410,6 +502,7 @@ async function boot() {
       render();
     });
     socket.on("state", (next) => {
+      synced = true;
       const previousPhase = state?.phase,
         previousRound = state?.roundId;
       if (next?.roundId !== previousRound || next?.phase !== previousPhase) {
