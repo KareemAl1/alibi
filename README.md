@@ -15,6 +15,8 @@ Open **http://localhost:3000**. Create a room, choose a nickname and avatar, and
 
 Each player needs an independent browser session. Tabs in the same browser profile intentionally share one player. For local testing, use separate browser profiles or different browsers; multiple private windows may still share their private session. To play on different devices on your local network, open `http://YOUR-COMPUTER-LAN-IP:3000` on each device and create the room from that address so its invite link is reachable. Your firewall must allow the server's port. A `localhost` invite only works on the computer that opened it.
 
+Follow [LOCAL-PLAYTEST.md](LOCAL-PLAYTEST.md) for a four-player walkthrough, recovery checks, and troubleshooting a stuck preview. [PUBLICATION.md](PUBLICATION.md) records the repository audit and steps needed before publishing.
+
 `PORT` changes the listening port, and `HOST` changes the listening interface (default `0.0.0.0`). For example, in PowerShell:
 
 ```powershell
@@ -42,7 +44,7 @@ The starter collection is curated locally and includes 120 words across six appr
 - Reveal readiness expires after **120 seconds**; an incomplete reveal abandons the round. Voting expires after **90 seconds** per ballot; an incomplete ballot abandons the round. A caught imposter has **60 seconds** to guess; no guess awards the group a win. If that imposter's disconnect grace expires first, the round is abandoned instead.
 - Late arrivals wait for the next round and receive no current-round role, word, or category. They can see the public room state and the final result.
 - Sessions expire after **24 hours**. Empty rooms expire after **30 minutes**. Server restarts clear all rooms and sessions.
-- Returning to a visible page requests a fresh, personalized server snapshot before enabling actions. It does not send Leave, extend deadlines, or replay offline clicks. If the session has expired, the persistent reload link lets the player create a new session and rejoin.
+- Returning to a visible page requests a fresh, personalized server snapshot before enabling actions. It does not send Leave, extend deadlines, or replay offline clicks. Temporary transport loss reconnects automatically. A rejected or expired session shows **Reload to reconnect** with a persistent explanation; the reload link creates a new session. After a server restart, all rooms are gone and players must create a new room.
 
 ## Architecture and security boundaries
 

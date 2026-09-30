@@ -5,7 +5,7 @@ import { io } from "socket.io-client";
 import { createAlibiServer } from "../server/index.js";
 import { GameStore } from "../server/game.js";
 import { CATEGORIES } from "../server/words.js";
-import { GAME_TIMING } from "../shared/protocol.js";
+import { CONNECTION_ERRORS, GAME_TIMING } from "../shared/protocol.js";
 
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -655,4 +655,67 @@ test("HTTP and socket boundaries reject cross-origin requests and unauthenticate
     assert.equal(result, "rejected");
     socket.disconnect();
   }
+});
+
+test("a healthy restarted server rejects old sessions explicitly and a fresh bootstrap reconnects", async (t) => {
+  let server = await createAlibiServer();
+  const port = await server.listen();
+  const origin = `http://127.0.0.1:${port}`;
+  const sockets = [];
+  t.after(async () => {
+    for (const socket of sockets) socket.disconnect();
+    await server.close();
+  });
+  const bootstrap = (cookie = "") =>
+    fetch(`${origin}/api/session`, {
+      method: "POST",
+      headers: { Origin: origin, Cookie: cookie },
+    });
+  const first = await bootstrap();
+  const oldCookie = first.headers.get("set-cookie").split(";")[0];
+  const oldIdentity = await first.json();
+  await server.close();
+  server = await createAlibiServer();
+  await server.listen(port);
+  assert.deepEqual(await (await fetch(`${origin}/api/health`)).json(), {
+    ok: true,
+  });
+
+  const connect = (cookie) => {
+    const socket = io(origin, {
+      transports: ["websocket"],
+      forceNew: true,
+      autoConnect: false,
+      extraHeaders: { Origin: origin, Cookie: cookie },
+    });
+    sockets.push(socket);
+    return socket;
+  };
+  const stale = connect(oldCookie);
+  const rejection = await new Promise((resolve) => {
+    stale.once("connect_error", resolve);
+    stale.connect();
+  });
+  assert.equal(rejection.data.code, CONNECTION_ERRORS.sessionExpired);
+  assert.equal(
+    stale.active,
+    false,
+    "authentication rejection does not retry automatically",
+  );
+
+  const fresh = await bootstrap(oldCookie);
+  assert.equal(fresh.status, 200);
+  assert.notEqual((await fresh.json()).playerId, oldIdentity.playerId);
+  const socket = connect(fresh.headers.get("set-cookie").split(";")[0]);
+  const snapshot = await new Promise((resolve, reject) => {
+    socket.once("state", resolve);
+    socket.once("connect_error", reject);
+    socket.connect();
+  });
+  assert.equal(socket.connected, true);
+  assert.equal(
+    snapshot,
+    null,
+    "a restart does not recover a lost room or private role",
+  );
 });

@@ -1,5 +1,6 @@
 import { AVATARS, avatar } from "./avatars.js";
 import {
+  CONNECTION_ERRORS,
   GAME_TIMING,
   createActionEnvelope,
   normalizeRoomCode,
@@ -33,6 +34,7 @@ let state = null,
   selectedVote = "",
   toastTimer;
 let syncPending = false;
+let connectionIssue = "";
 let lastRenderKey = "";
 let nickname = "",
   avatarId = 0,
@@ -53,8 +55,11 @@ const cat = (id) => {
     ? `${category.plainLabel || category.label} · ${category.label}`
     : id || "Mystery";
 };
-const graceLabel = () =>
-  `${Math.round((state?.disconnectGraceMs || GAME_TIMING.disconnectGraceMs) / 60_000)} minutes`;
+const graceLabel = () => {
+  const seconds =
+    (state?.disconnectGraceMs || GAME_TIMING.disconnectGraceMs) / 1000;
+  return `${seconds / 60} minutes (${seconds} seconds)`;
+};
 const disabled = (condition) =>
   condition || busy || !connected || !synced ? "disabled" : "";
 const button = (text, action, options = "") =>
@@ -205,15 +210,16 @@ function render() {
       : new Map();
   lastRenderKey = renderKey;
   status.className = `connection ${connected && synced ? "live" : "offline"}`;
-  status.textContent =
-    connected && synced
+  status.textContent = connectionIssue
+    ? "Reload to reconnect"
+    : connected && synced
       ? "Connected · let’s play"
       : connected
         ? "Updating your room…"
         : "Reconnecting…";
   const offline =
     !connected || !synced
-      ? `<div class="connection-banner" role="status">${connected ? "Checking the latest room state…" : "Reconnecting…"} Your seat is held for ${graceLabel()} after a lost connection. Voting and guess timers keep running. <a href="${esc(location.pathname + location.search)}">Reload to try again</a>.</div>`
+      ? `<div class="connection-banner" role="status">${connectionIssue ? esc(connectionIssue) : `${connected ? "Checking the latest room state…" : "Reconnecting…"} ${state ? `While the server is running, your seat is held for ${graceLabel()} after it detects a lost connection. Round deadlines keep running.` : "Waiting for a connection to the game server."}`} <a data-reconnect href="${esc(location.pathname + location.search)}">Reload to try again</a>.</div>`
       : "";
   app.innerHTML =
     offline +
@@ -361,7 +367,7 @@ function arrangePhoneControls() {
 phoneLayout.addEventListener("change", render);
 
 function synchronize() {
-  if (!socket || document.hidden || syncPending) return;
+  if (!socket || document.hidden || syncPending || connectionIssue) return;
   synced = false;
   revealed = false;
   render();
@@ -373,16 +379,20 @@ function synchronize() {
   socket.timeout(7000).emit("state:sync", {}, (error, reply) => {
     syncPending = false;
     if (error || !reply?.ok) {
-      notify(
+      connectionIssue =
         reply?.error ||
-          "Could not refresh the room. Reconnect before taking your turn.",
-      );
+        "Could not refresh the room. Reload before taking your turn.";
       render();
     }
   });
 }
 
 app.addEventListener("click", async (event) => {
+  if (event.target.closest("[data-reconnect]")) {
+    event.preventDefault();
+    location.reload();
+    return;
+  }
   const el = event.target.closest("button");
   if (!el || el.disabled) return;
   if (el.dataset.mode) {
@@ -480,21 +490,34 @@ async function boot() {
       reconnectionDelayMax: 3000,
     });
     socket.on("connect", () => {
+      connectionIssue = "";
       connected = true;
       synced = false;
       render();
     });
-    socket.on("disconnect", () => {
+    socket.on("disconnect", (reason) => {
       connected = false;
       synced = false;
       syncPending = false;
       revealed = false;
+      connectionIssue =
+        reason === "io server disconnect"
+          ? "The server closed your connection. Reload to connect again. Your session may have expired."
+          : "";
       render();
     });
     socket.on("connect_error", (error) => {
       connected = false;
-      status.textContent = "Connection interrupted";
-      notify(error.message);
+      synced = false;
+      revealed = false;
+      // Authentication rejections stop Socket.IO retries; preserve an actionable
+      // message instead of claiming an automatic reconnect is still in progress.
+      connectionIssue =
+        error.data?.code === CONNECTION_ERRORS.sessionExpired ||
+        error.data?.code === CONNECTION_ERRORS.tooManyTabs ||
+        !socket.active
+          ? error.message || "Connection refused. Reload to try again."
+          : "";
       render();
     });
     socket.on("catalog", (items) => {
@@ -502,6 +525,7 @@ async function boot() {
       render();
     });
     socket.on("state", (next) => {
+      connectionIssue = "";
       synced = true;
       const previousPhase = state?.phase,
         previousRound = state?.roundId;
@@ -524,7 +548,7 @@ async function boot() {
     socket.connect();
   } catch (error) {
     status.textContent = "Not connected";
-    app.innerHTML = `<section class="loading"><h1>Couldn’t pull up a chair.</h1><p>${esc(error.message || "Please check your connection.")}</p><a class="button primary" href="${esc(location.pathname + location.search)}">Try again</a></section>`;
+    app.innerHTML = `<section class="loading"><h1>Couldn’t pull up a chair.</h1><p>${esc(error.message || "Please check your connection.")}</p><a data-reconnect class="button primary" href="${esc(location.pathname + location.search)}">Try again</a></section>`;
   }
 }
 boot();

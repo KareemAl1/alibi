@@ -1,6 +1,6 @@
 # Put Alibi online
 
-Prepared September 30, 2026. Nothing has been deployed, published, or charged.
+Prepared and official pricing rechecked September 30, 2026. Nothing has been deployed, published, or charged. The paid plan in `render.yaml` is a proposal, not an approved purchase; importing it and choosing Deploy would create a billable service.
 
 The simplest fit for this version is **one paid Render Node web service**. It runs the existing Express server, browser files, and Socket.IO endpoint together at one HTTPS address. Friends open that address, create a room, and share its invite link. No separate frontend host, database, Docker image, or mobile app is required for this playtest. Render supports public WebSockets without a fixed connection duration; disconnects can still occur during deploys, maintenance, or network changes. [Render WebSockets](https://render.com/docs/websocket)
 
@@ -8,8 +8,10 @@ The simplest fit for this version is **one paid Render Node web service**. It ru
 
 - A Render account with a payment method and permission to create a paid web service.
 - A GitHub, GitLab, or Bitbucket repository containing this exact project, and permission for Render to read that repository. A private repository is fine. The local repository currently has no Git remote; creating or pushing a remote repository has not been done.
-- Agreement to the paid service: the **0.5c-512mb** plan is **$7/month** for 0.5 CPU and 512 MB RAM, on a **$0/month Hobby workspace**. This plan used to be called Starter. The supplied configuration creates exactly one service and no paid database or disk. [Pricing](https://render.com/pricing), [current plan names](https://render.com/docs/compute-plans)
+- Agreement to the paid service: the **0.5c-512mb** plan is **US$7/month** for 0.5 CPU and 512 MB RAM, on a **US$0/month Hobby workspace**. This plan used to be called Starter. The supplied configuration creates exactly one service and no paid database or disk. A paid Pro workspace is not required. Compute billing is prorated to the second. [Pricing](https://render.com/pricing), [current plan names](https://render.com/docs/compute-plans)
 - The $7 is the base compute price, not a hard bill cap. Hobby currently includes 5 GB of monthly outbound bandwidth, then $0.15/GB, and 500 standard build minutes, then $5 per 1,000 minutes. Review the estimate and billing settings in the account before creating the service. No custom domain purchase is necessary; use Render's supplied HTTPS address. [Pricing](https://render.com/pricing)
+
+These figures describe a new Hobby workspace and one service. Existing services share the workspace's included usage. If the chosen account has a legacy workspace plan, confirm its actual plan and remaining allowances on its Billing page before deciding; no account or billing changes are needed for the local playtest. [Workspace plan changes](https://render.com/docs/new-workspace-plans)
 
 Render Free can demonstrate the app, but it sleeps after 15 minutes without inbound HTTP traffic or WebSocket messages and takes about a minute to wake. Its process restart clears Alibi's rooms and sessions. The paid configuration avoids this idle sleep, which makes it a better fit for a link shared with friends. Paid instances can still restart; they do not make rooms durable. [Free service limitations](https://render.com/docs/free)
 

@@ -6,6 +6,7 @@ import path from "node:path";
 import { Server } from "socket.io";
 import { GameStore } from "./game.js";
 import { CATEGORIES } from "./words.js";
+import { CONNECTION_ERRORS } from "../shared/protocol.js";
 
 const DAY = 86_400_000;
 const publicPath = fileURLToPath(new URL("../public", import.meta.url));
@@ -131,13 +132,24 @@ export async function createAlibiServer({
   });
   io.use((socket, next) => {
     const session = readSession(socket.request);
+    const reject = (code, message) => {
+      const error = new Error(message);
+      error.data = { code };
+      next(error);
+    };
     if (!session)
-      return next(new Error("Session expired. Refresh the page to reconnect."));
+      return reject(
+        CONNECTION_ERRORS.sessionExpired,
+        "Your session expired or the server restarted. Reload to connect again. A server restart clears all rooms.",
+      );
     socket.data.playerId = session.playerId;
     socket.data.token = session.token;
     const tabs = connections.get(session.playerId);
     if (tabs?.size >= 8)
-      return next(new Error("Too many Alibi tabs. Close one and retry."));
+      return reject(
+        CONNECTION_ERRORS.tooManyTabs,
+        "Too many Alibi tabs. Close one, then reload to reconnect.",
+      );
     next();
   });
   const broadcast = () => {

@@ -1,6 +1,27 @@
 node_modules/
+
+# Runtime secrets stay in the shell or hosting platform.
 .env
+.env.*
+!.env.example
+.npmrc
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Local test evidence, logs, and browser profiles can contain private game data.
 artifacts/
 *.log
+*.pid
 playwright-report/
 test-results/
+.playwright/
+coverage/
+
+# Local editor and operating-system files.
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+Desktop.ini

@@ -1,6 +1,11 @@
 /** Public, platform-neutral protocol helpers. Never place words, roles or sessions here. */
 export const PROTOCOL_VERSION = 1;
 
+export const CONNECTION_ERRORS = Object.freeze({
+  sessionExpired: "SESSION_EXPIRED",
+  tooManyTabs: "TOO_MANY_TABS",
+});
+
 export const GAME_TIMING = Object.freeze({
   disconnectGraceMs: 120_000,
   revealMs: 120_000,
