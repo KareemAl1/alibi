@@ -1,0 +1,26 @@
+{
+  "name": "alibi",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "A private, real-time secret-word party game for friends on Discord.",
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "node --watch server/index.js",
+    "test": "node --test test/*.test.js",
+    "test:browser": "node test/browser-smoke.js",
+    "format": "prettier --write public/*.{js,css,html} server/*.js test/*.js *.md package.json"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {
+    "express": "^5.1.0",
+    "socket.io": "^4.8.1"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.55.0",
+    "prettier": "^3.9.9",
+    "socket.io-client": "^4.8.1"
+  }
+}
