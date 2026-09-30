@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#191b20" />
+    <meta
+      name="description"
+      content="One secret word. One convincing liar. A private party game for your next Discord night."
+    />
+    <title>Alibi — Keep a straight face.</title>
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="/style.css" />
+    <script src="/socket.io/socket.io.js" defer></script>
+    <script src="/app.js" type="module"></script>
+  </head>
+  <body>
+    <div class="ambient" aria-hidden="true"></div>
+    <header class="site-header">
+      <a href="/" class="brand" aria-label="Alibi home"
+        >alibi<span class="brand-dot">.</span></a
+      ><span class="brand-caption">KEEP A STRAIGHT FACE.</span>
+      <div class="connection" id="connection" role="status">Connecting…</div>
+    </header>
+    <main id="app">
+      <div class="loading">
+        <div class="loader"></div>
+        <h1>Pulling up a chair.</h1>
+        <p>Connecting to the room…</p>
+      </div>
+    </main>
+    <div class="toast" id="toast" role="alert" hidden></div>
+    <div
+      class="sr-only"
+      id="game-announcement"
+      role="status"
+      aria-live="polite"
+      aria-atomic="true"
+    ></div>
+    <footer class="site-footer">
+      <span>A little suspicion. A very good night.</span
+      ><span
+        >4–10 friends <b>·</b> One imposter <b>·</b> Play on your voice
+        call</span
+      >
+    </footer>
+  </body>
+</html>

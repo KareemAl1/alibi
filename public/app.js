@@ -1,0 +1,437 @@
+import { AVATARS, avatar } from "./avatars.js";
+
+const app = document.querySelector("#app");
+const status = document.querySelector("#connection");
+const toast = document.querySelector("#toast");
+const esc = (value) =>
+  String(value ?? "").replace(
+    /[&<>"']/g,
+    (c) =>
+      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[
+        c
+      ],
+  );
+// randomUUID requires a secure context; getRandomValues also works on local LAN HTTP.
+const actionId = () =>
+  typeof crypto.randomUUID === "function"
+    ? crypto.randomUUID()
+    : Array.from(crypto.getRandomValues(new Uint8Array(16)), (byte) =>
+        byte.toString(16).padStart(2, "0"),
+      ).join("");
+let state = null,
+  socket,
+  connected = false,
+  catalog = [],
+  busy = false,
+  revealed = false,
+  selectedVote = "",
+  toastTimer;
+let lastRenderKey = "";
+let nickname = "",
+  avatarId = 0,
+  mode = new URLSearchParams(location.search).has("room") ? "join" : "create";
+let roomCode = new URLSearchParams(location.search).get("room") || "",
+  guess = "";
+try {
+  nickname = localStorage.getItem("alibi.nickname") || "";
+  avatarId = Number(localStorage.getItem("alibi.avatar") || 0) % 8;
+} catch {
+  /* Preferences are optional. */
+}
+const name = (id) =>
+  state?.players.find((p) => p.id === id)?.nickname || "Departed player";
+const cat = (id) => catalog.find((c) => c.id === id)?.label || id || "Mystery";
+const disabled = (condition) =>
+  condition || busy || !connected ? "disabled" : "";
+const button = (text, action, options = "") =>
+  `<button type="button" class="button" data-action="${action}" ${disabled(false)} ${options}>${text}</button>`;
+const timer = (deadline) =>
+  deadline ? `<span class="deadline" data-deadline="${deadline}"></span>` : "";
+const rules = () =>
+  `<details class="rules"><summary>First time in the hot seat? <span>How to play</span></summary><div class="rules-content"><p><b>1. Keep your card private.</b> Everyone gets a secret word, except one imposter who gets only the category.</p><p><b>2. Give a clue aloud.</b> Take turns on your Discord or voice call. Be specific enough to fit in, vague enough to protect the word.</p><p><b>3. Find the imposter.</b> Discuss and vote privately. A caught imposter gets one chance to guess the word and steal the win.</p><p>One runoff breaks a tie. A second tie or an innocent accusation lets the imposter escape.</p></div></details>`;
+
+function notify(message) {
+  toast.textContent = message;
+  toast.hidden = false;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => {
+    toast.hidden = true;
+  }, 6500);
+}
+
+function setup() {
+  return `<section class="entry-grid"><div class="entry-story"><div class="eyebrow"><span class="orange-line"></span> A PARTY GAME OF PLAUSIBLE DENIABILITY</div><h1>Good friends.<br>Bad <em>alibis.</em></h1><p class="intro">Everyone knows the secret word.<br>Well, <span>almost</span> everyone.</p><div class="art-frame"><img class="hero-art" src="/art/interrogation.png" alt="Four suspicious characters around an interrogation table under an orange spotlight"><span class="art-caption">SOMEONE AT THIS TABLE IS WINGING IT.</span></div></div><div class="entry-right"><section class="paper entry-card"><div class="paper-top"><span class="eyebrow">THE NIGHT STARTS HERE</span><span class="tiny-stamp">TOP SECRET</span></div><h2>Take a seat.</h2><p class="muted">Gather your friends. Bring your poker face.</p><div class="tabs" role="group" aria-label="Choose how to play"><button type="button" data-mode="create" class="${mode === "create" ? "selected" : ""}" aria-pressed="${mode === "create"}">Create a room</button><button type="button" data-mode="join" class="${mode === "join" ? "selected" : ""}" aria-pressed="${mode === "join"}">Join a room</button></div><form id="entry-form"><label for="nickname">What should we call you?</label><input id="nickname" name="nickname" placeholder="Your nickname" maxlength="20" minlength="1" autocomplete="nickname" value="${esc(nickname)}" required><fieldset class="avatar-picker"><legend>Pick your usual suspect</legend><div>${AVATARS.map((label, i) => `<button type="button" class="avatar-option ${avatarId === i ? "selected" : ""}" data-avatar="${i}" aria-label="${label}" aria-pressed="${avatarId === i}">${avatar(i)}</button>`).join("")}</div></fieldset>${mode === "join" ? `<label for="room-code">Room code</label><input id="room-code" class="code-input" name="code" placeholder="ABCDEF" maxlength="6" autocomplete="off" autocapitalize="characters" spellcheck="false" value="${esc(roomCode)}" required>` : ""}<button class="button primary wide" type="submit" ${disabled(false)}>${busy ? "Pulling up your chair…" : mode === "join" ? "Join the room" : "Create a private room"}</button><p class="form-note">No accounts. Just a room link and your friends.</p></form></section><div class="voice-note"><span class="headphones" aria-hidden="true">◖◗</span><div><b>Bring your own conversation.</b><p>Hop on Discord or your favorite voice call.<br>We’ll handle the secrets.</p></div></div></div></section><div class="entry-bottom"><div><span class="step-number">01</span><b>Get your secret</b></div><div><span class="step-number">02</span><b>Sound convincing</b></div><div><span class="step-number">03</span><b>Call their bluff</b></div></div>${rules()}`;
+}
+
+function roomHeader() {
+  return `<div class="room-bar"><div><span class="eyebrow">PRIVATE ROOM</span><button type="button" class="room-code" data-copy aria-label="Copy room invite link">${esc(state.code)} <span aria-hidden="true">⧉</span></button></div><div class="room-actions"><button type="button" class="button small quiet" data-copy>Copy invite link</button><button type="button" class="text-button" data-action="leave" ${disabled(false)}>Leave room</button></div></div>${state.notice ? `<div class="notice" role="status">${esc(state.notice)}</div>` : ""}${
+    state.players.some((p) => !p.connected && !p.departed)
+      ? `<div class="notice warning">${state.players
+          .filter((p) => !p.connected && !p.departed)
+          .map(
+            (p) =>
+              `${esc(p.nickname)} is reconnecting ${timer(p.disconnectDeadline)}`,
+          )
+          .join(
+            " · ",
+          )}. Seats are held for 60 seconds; an expired round participant ends the round.</div>`
+      : ""
+  }`;
+}
+
+function playerGrid() {
+  const connectedCount = state.players.filter(
+    (p) => p.connected && !p.departed,
+  ).length;
+  const players = state.players.filter((p) => !p.departed);
+  return `<section class="players-section"><div class="section-title"><h3>The usual suspects</h3><span>${connectedCount}<span class="dim"> / 10</span></span></div><div class="players-grid">${players.map((p) => `<div class="player-tile ${p.connected ? "" : "disconnected"}">${avatar(p.avatar)}<div><b>${esc(p.nickname)}${p.id === state.me.id ? ' <span class="you">you</span>' : ""}</b><span class="player-status">${p.id === state.hostId ? "Host" : p.waiting ? "Next round" : p.connected ? "In the room" : "Reconnecting…"}</span></div>${p.connected ? '<span class="online-dot" aria-label="Connected"></span>' : ""}</div>`).join("")}${Array.from({ length: Math.max(0, 4 - players.length) }, () => `<div class="player-tile empty"><div class="empty-avatar">?</div><span>Saving a seat…</span></div>`).join("")}</div><div class="room-tip"><span aria-hidden="true">✳</span><p>${connectedCount < 4 ? `Need ${4 - connectedCount} more ${4 - connectedCount === 1 ? "friend" : "friends"} to start. Send them your invite link.` : "The table is ready. Make sure everyone is on the voice call."}</p></div></section>`;
+}
+
+function categories() {
+  return `<div class="category-list">${catalog.map((c, i) => `<label class="category ${state.categories.includes(c.id) ? "checked" : ""}"><input type="checkbox" name="category" value="${esc(c.id)}" ${state.categories.includes(c.id) ? "checked" : ""} ${disabled(!state.me.isHost)}><span class="category-icon" aria-hidden="true">${["✦", "◒", "♧", "⌂", "◎", "♫", "◈", "✳"][i % 8]}</span><span><b>${esc(c.label)}</b><small>${esc(c.description || "")}</small></span><span class="check" aria-hidden="true">${state.categories.includes(c.id) ? "✓" : "+"}</span></label>`).join("")}</div>`;
+}
+
+function lobby() {
+  const total = state.players.filter((p) => p.connected && !p.departed).length;
+  return `${roomHeader()}<div class="room-heading"><div class="eyebrow">MAKE YOURSELF SUSPICIOUS</div><h1 id="phase-title" tabindex="-1">The waiting room<span class="orange">.</span></h1><p>Everyone’s a friend. For now.</p></div><div class="lobby-grid"><div>${playerGrid()}<div class="lobby-art"><img src="/art/interrogation.png" alt="A lineup of four very suspicious friends"><span>TRUST IS A BEAUTIFUL THING.<br>LET’S RUIN IT A LITTLE.</span></div></div><section class="paper case-settings"><div class="paper-top"><span class="eyebrow">TONIGHT’S CASE FILE</span><span class="tiny-stamp">CLASSIFIED</span></div><h2>Pick your territory.</h2><p class="muted">${state.me.isHost ? "Choose at least one category for the secret word." : "Your host is choosing the categories."}</p>${categories()}<div class="settings-bottom"><div class="settings-line"><span>Imposters</span><b>1 very good liar</b></div><div class="settings-line"><span>Clue laps</span><b>1 + an optional encore</b></div>${state.me.isHost ? `<button class="button primary wide" data-action="start" ${disabled(total < 4 || !state.categories.length)}>${total < 4 ? "Waiting for more players" : "Start the round"}</button>` : `<div class="waiting-label">Waiting for ${esc(name(state.hostId))} to start</div>`}</div></section></div>${rules()}`;
+}
+
+function phaseSteps() {
+  const phase = state.phase;
+  const index =
+    phase === "reveal"
+      ? 0
+      : phase === "clues"
+        ? 1
+        : phase === "discussion"
+          ? 2
+          : ["voting", "runoff", "guess"].includes(phase)
+            ? 3
+            : 4;
+  return `<div class="phase-steps" aria-label="Round progress">${["The secret", "The clues", "The debate", "The verdict"].map((s, i) => `<div class="${i === index ? "active" : i < index ? "complete" : ""}" ${i === index ? 'aria-current="step"' : ""}><span>${i < index ? "✓" : `0${i + 1}`}</span>${s}</div>`).join("")}</div>`;
+}
+
+function privateCard() {
+  if (!state.me.role || state.phase === "results") return "";
+  const imposter = state.me.role === "imposter";
+  return `<section class="paper private-card"><div class="paper-top"><span class="eyebrow">FOR YOUR EYES ONLY</span><span aria-hidden="true">◈</span></div>${revealed ? `<div class="role-content ${imposter ? "imposter" : ""}"><span class="role-label">${imposter ? "YOU ARE THE IMPOSTER" : "YOU KNOW THE WORD"}</span><h2>${imposter ? "Play it cool." : esc(state.me.word)}</h2><p>Category: <b>${esc(cat(state.me.category))}</b></p><p class="role-hint">${imposter ? "Listen closely. Blend in. The word is your way out." : "Give a clue without giving the whole game away."}</p></div>` : `<div class="concealed"><div class="secret-symbol" aria-hidden="true">?</div><h3>A little secret.</h3><p>Make sure only you can see your screen.</p></div>`}<button type="button" class="button reveal-button wide" data-reveal aria-pressed="${revealed}">${revealed ? "Hide my card" : "Reveal my card"}</button><p class="card-footnote">Your card hides when you leave this tab.</p></section>`;
+}
+
+function turnList() {
+  const ids =
+    state.turn?.order ||
+    state.players.filter((p) => !p.waiting).map((p) => p.id);
+  return `<section class="turn-list"><div class="section-title"><h3>${state.phase === "clues" ? "Speaking order" : "Around the table"}</h3>${state.turn ? `<span>Lap ${state.turn.lap}</span>` : ""}</div>${ids
+    .map((id, i) => {
+      const p = state.players.find((p) => p.id === id);
+      if (!p) return "";
+      const current = state.phase === "clues" && state.turn?.currentId === id,
+        done = state.turn?.finishedIds.includes(id);
+      return `<div class="turn-row ${current ? "current" : ""}"><span class="order-number">${done ? "✓" : String(i + 1).padStart(2, "0")}</span>${avatar(p.avatar, "mini")}<b>${esc(p.nickname)}${id === state.me.id ? ' <span class="you">you</span>' : ""}</b><span class="turn-status">${!p.connected ? "Offline" : current ? "Speaking" : state.phase === "reveal" ? (p.ready ? "Ready" : "Checking card") : done ? "Done" : ""}</span></div>`;
+    })
+    .join("")}</section>`;
+}
+
+function mainStage() {
+  const s = state;
+  const waiting = !s.me.eligible;
+  if (s.phase === "reveal")
+    return `<section class="stage"><div class="stage-icon" aria-hidden="true">◈</div><span class="eyebrow">ROUND ${s.roundNumber} · EYES DOWN</span><h1 id="phase-title" tabindex="-1">${waiting ? "Your seat is saved." : s.me.ready ? "Poker face on." : "Got a good alibi?"}</h1><p>${waiting ? "You arrived mid-case. Watch this round, then join the next one." : s.me.ready ? "Keep your secret. We’re waiting for everyone to be ready." : "Reveal your private card, remember it, then tell us you’re ready."}</p><div class="readiness">${s.players.filter((p) => p.ready && !p.waiting).length} / ${s.players.filter((p) => !p.waiting && !p.departed).length} ready ${timer(s.phaseDeadline)}</div>${!waiting ? `<button class="button primary" data-action="ready" ${disabled(s.me.ready)}>${s.me.ready ? "You’re ready" : "I’m ready"}</button>` : ""}</section>`;
+  if (s.phase === "clues") {
+    const current = s.players.find((p) => p.id === s.turn.currentId);
+    const yours = s.turn.currentId === s.me.id;
+    return `<section class="stage speaker-stage ${s.turn.paused ? "paused" : ""}"><span class="eyebrow">ROUND ${s.roundNumber} · CLUE LAP ${s.turn.lap}</span><div class="spotlight">${avatar(current?.avatar, "speaker-avatar")}</div><div class="speaking-label">${s.turn.paused ? "ON HOLD" : yours ? "YOU’RE IN THE HOT SEAT" : "IN THE HOT SEAT"}</div><h1 id="phase-title" tabindex="-1">${s.turn.paused ? "A dramatic pause." : yours ? "Your turn." : `Waiting for ${esc(current?.nickname)}.`}</h1><p>${s.turn.paused ? "Your host will resume the round shortly." : yours ? "Give one short clue aloud. Sound like you belong." : "Listen to the clue. Notice anything suspicious?"}</p>${yours ? `<button class="button primary" data-action="done" ${disabled(s.turn.paused)}>Done with my clue</button>` : `<div class="waiting-label">${s.turn.paused ? "Take a breath." : `${esc(current?.nickname)} is giving a clue…`}</div>`}<div class="up-next">UP NEXT <b>${s.turn.nextId ? esc(name(s.turn.nextId)) : "Everyone · discussion"}</b></div></section>${s.me.isHost ? `<div class="host-controls"><span>HOST CONTROLS</span>${button(s.turn.paused ? "Resume round" : "Pause round", "pause")}${button("Advance turn", "advance")}</div>` : ""}`;
+  }
+  if (s.phase === "discussion")
+    return `<section class="stage"><div class="stage-icon" aria-hidden="true">“ ”</div><span class="eyebrow">LET’S HEAR YOUR THEORY</span><h1 id="phase-title" tabindex="-1">Something doesn’t<br>add up.</h1><p>Compare clues on your voice call.<br>Who’s bluffing, and who’s just bad at clues?</p>${s.me.isHost ? `<div class="stage-actions">${button("Start private voting", "vote-start", "data-primary")}${s.lap < 2 ? button("One more clue lap", "extra-lap") : ""}</div>` : `<div class="waiting-label">${esc(name(s.hostId))} will start the vote.</div>`}</section>`;
+  if (["voting", "runoff"].includes(s.phase))
+    return `<section class="stage vote-stage"><span class="eyebrow">${s.voting.runoff ? "ONE LAST CHANCE TO AGREE" : "NO PEEKING. NO SELF-VOTES."}</span><h1 id="phase-title" tabindex="-1">${s.voting.runoff ? "Let’s break the tie." : "Who’s the imposter?"}</h1><p>${waiting ? "Watch the verdict. You’ll play next round." : s.me.hasVoted ? "Your vote is locked. Let’s see if your instincts were right." : "Choose your suspect. Your vote stays private until everyone is in."}</p><div class="vote-progress"><b>${s.voting.submitted} / ${s.voting.total}</b> votes locked ${timer(s.voting.deadline)}</div><div class="vote-grid">${s.voting.candidateIds
+      .map((id) => {
+        const p = s.players.find((p) => p.id === id);
+        return `<button type="button" class="vote-candidate ${selectedVote === id ? "selected" : ""}" data-vote="${id}" aria-pressed="${selectedVote === id}" ${disabled(waiting || s.me.hasVoted || id === s.me.id)}>${avatar(p?.avatar)}<b>${esc(p?.nickname)}</b><span>${id === s.me.id ? "That’s you" : selectedVote === id ? "Your suspect" : "Suspect"}</span></button>`;
+      })
+      .join(
+        "",
+      )}</div>${!waiting ? `<button type="button" class="button primary" data-submit-vote ${disabled(!selectedVote || s.me.hasVoted)}>${s.me.hasVoted ? "Vote locked" : "Lock in my vote"}</button>` : ""}<p class="fineprint">An incomplete ballot ends the round without a winner.</p></section>${ballots(s.ballots)}`;
+  if (s.phase === "guess")
+    return `<section class="stage"><span class="eyebrow">THE FINAL ALIBI</span><div class="stage-icon" aria-hidden="true">!</div><h1 id="phase-title" tabindex="-1">Caught. Not finished.</h1><p><b>${esc(name(s.accusedId))}</b> is the imposter.<br>${s.me.role === "imposter" ? "Guess the secret word to steal the win. One shot." : "They get one chance to guess the secret word. Keep it to yourself."}</p>${timer(s.phaseDeadline)}${s.me.role === "imposter" ? `<form id="guess-form" class="guess-form"><label for="guess">Your final guess</label><input id="guess" maxlength="80" autocomplete="off" placeholder="Make it count…" value="${esc(guess)}" required><button class="button primary wide" ${disabled(false)}>Submit final guess</button></form>` : `<div class="waiting-label">Waiting for the final guess…</div>`}</section>${ballots(s.ballots)}`;
+  return "";
+}
+
+function ballots(items) {
+  if (!items?.length) return "";
+  return `<details class="ballot-details" ${state.phase === "results" ? "open" : ""}><summary>The votes, unsealed <span>${items.length} ballot${items.length === 1 ? "" : "s"}</span></summary>${items.map((b) => `<div class="ballot"><h3>${b.runoff ? "Runoff" : "First vote"}</h3>${b.votes.map((v) => `<div><span>${esc(name(v.voterId))}</span><span class="dim">voted for</span><b>${esc(name(v.targetId))}</b></div>`).join("")}</div>`).join("")}</details>`;
+}
+
+function results() {
+  const r = state.result;
+  const title =
+    r.winner === "group"
+      ? "Case closed."
+      : r.winner === "imposter"
+        ? "A clean getaway."
+        : "Case interrupted.";
+  return `${roomHeader()}<section class="results-heading"><span class="eyebrow">ROUND ${state.roundNumber} · ${r.winner ? "THE TRUTH IS OUT" : "NO WINNER"}</span><h1 id="phase-title" tabindex="-1">${title}</h1><p>${r.winner === "group" ? "The group wins. Good instincts, detectives." : r.winner === "imposter" ? "The imposter wins. Maybe trust a little less next time." : "The round ended so everyone can start together again."}</p></section><div class="results-grid"><section class="paper result-card"><span class="tiny-stamp">${r.winner === "group" ? "SOLVED" : r.winner === "imposter" ? "ESCAPED" : "INTERRUPTED"}</span><span class="eyebrow">THE SECRET WORD WAS</span><h2>${esc(r.word)}</h2><div class="reveal-imposter">${avatar(state.players.find((p) => p.id === r.imposterId)?.avatar)}<div><small>THE IMPOSTER</small><b>${esc(name(r.imposterId))}</b></div></div><p class="result-reason">${esc(r.reason)}</p>${r.guess ? `<p class="final-guess">Final guess: <b>“${esc(r.guess)}”</b></p>` : ""}</section><div class="result-next"><h2>Another round?<br>Another alibi.</h2><p>Same friends. A fresh secret.<br>Everyone’s back in the game.</p>${state.me.isHost ? `<button class="button primary" data-action="start" ${disabled(state.players.filter((p) => p.connected && !p.departed).length < 4 || !state.categories.length)}>Next round</button>${state.players.filter((p) => p.connected && !p.departed).length < 4 ? '<p class="fineprint">You need at least 4 connected players.</p>' : ""}` : `<div class="waiting-label">Waiting for ${esc(name(state.hostId))} to start.</div>`}<details class="next-categories"><summary>Categories for next round</summary>${categories()}</details></div></div>${ballots(r.ballots)}${playerGrid()}`;
+}
+
+function render() {
+  const active = document.activeElement,
+    activeId = active?.id;
+  const activeKey = active?.dataset?.focusKey;
+  const selection = active?.selectionStart;
+  const renderKey = `${state?.code}:${state?.roundId}:${state?.phase}`;
+  const detailsState =
+    renderKey === lastRenderKey
+      ? new Map(
+          [...app.querySelectorAll("details")].map((el) => [
+            el.className,
+            el.open,
+          ]),
+        )
+      : new Map();
+  lastRenderKey = renderKey;
+  status.className = `connection ${connected ? "live" : "offline"}`;
+  status.textContent = connected ? "Connected · let’s play" : "Reconnecting…";
+  const offline = !connected
+    ? `<div class="connection-banner" role="status">Reconnecting… Your seat is held for 60 seconds after a lost connection. <a href="${esc(location.pathname + location.search)}">Reload to try again</a>.</div>`
+    : "";
+  app.innerHTML =
+    offline +
+    (!state
+      ? setup()
+      : state.phase === "lobby"
+        ? lobby()
+        : state.phase === "results"
+          ? results()
+          : `${roomHeader()}${phaseSteps()}${!state.me.eligible ? '<div class="notice">You joined during a round. Your seat is saved for the next one.</div>' : ""}<div class="game-grid"><div>${mainStage()}</div><aside>${privateCard()}${turnList()}</aside></div>`);
+  const announcement =
+    state?.phase === "clues"
+      ? `${state.turn.paused ? "Round paused." : state.turn.currentId === state.me.id ? "Your turn to give a clue." : `Waiting for ${name(state.turn.currentId)} to give a clue.`}`
+      : state?.voting
+        ? `${state.voting.submitted} of ${state.voting.total} votes submitted.`
+        : state?.phase === "reveal"
+          ? `${state.players.filter((p) => p.ready && !p.waiting).length} players ready.`
+          : "";
+  const live = document.querySelector("#game-announcement");
+  if (live.textContent !== announcement) live.textContent = announcement;
+  app.querySelectorAll("details").forEach((el) => {
+    if (detailsState.has(el.className))
+      el.open = detailsState.get(el.className);
+  });
+  const keys = new Map();
+  app.querySelectorAll("button,input,a,summary").forEach((el) => {
+    const data = [...el.attributes]
+      .filter((attr) => attr.name.startsWith("data-"))
+      .map((attr) => `${attr.name}:${attr.value}`)
+      .join("|");
+    const base =
+      el.id ||
+      data ||
+      (el.tagName === "SUMMARY"
+        ? `summary:${el.parentElement.className}`
+        : el.type === "submit"
+          ? `submit:${el.form?.id}`
+          : `${el.tagName}:${el.name || ""}:${el.value || ""}:${el.getAttribute("href") || ""}`);
+    const count = keys.get(base) || 0;
+    keys.set(base, count + 1);
+    el.dataset.focusKey = `${base}:${count}`;
+  });
+  const next = activeId
+    ? document.getElementById(activeId)
+    : activeKey
+      ? [...app.querySelectorAll("[data-focus-key]")].find(
+          (el) => el.dataset.focusKey === activeKey,
+        )
+      : null;
+  if (next && !next.disabled) {
+    next.focus({ preventScroll: true });
+    if (typeof selection === "number" && next.setSelectionRange)
+      try {
+        next.setSelectionRange(selection, selection);
+      } catch {}
+  } else if (activeKey)
+    document.querySelector("#phase-title")?.focus({ preventScroll: true });
+  updateTimers();
+}
+
+function updateTimers() {
+  document.querySelectorAll("[data-deadline]").forEach((el) => {
+    const seconds = Math.max(
+      0,
+      Math.ceil((Number(el.dataset.deadline) - Date.now()) / 1000),
+    );
+    el.textContent = `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")} left`;
+  });
+}
+setInterval(updateTimers, 1000);
+
+async function send(event, payload) {
+  if (!connected || busy) return;
+  const focusKey = document.activeElement?.dataset?.focusKey;
+  busy = true;
+  render();
+  return new Promise((resolve) =>
+    socket.timeout(7000).emit(event, payload, (err, response) => {
+      busy = false;
+      if (err)
+        notify(
+          "No confirmation yet. Reconnect to see the latest room state before trying again.",
+        );
+      else if (!response?.ok)
+        notify(response?.error || "That action could not be completed.");
+      render();
+      const control = [...app.querySelectorAll("[data-focus-key]")].find(
+        (el) => el.dataset.focusKey === focusKey,
+      );
+      if (control && !control.disabled) control.focus({ preventScroll: true });
+      resolve(!err && response?.ok);
+    }),
+  );
+}
+function act(type, extra = {}) {
+  if (!state) return;
+  return send("action", {
+    type,
+    actionId: actionId(),
+    code: state.code,
+    roundId: state.roundId,
+    turnId: state.turn?.id,
+    votingId: state.voting?.id,
+    ...extra,
+  });
+}
+
+app.addEventListener("click", async (event) => {
+  const el = event.target.closest("button");
+  if (!el || el.disabled) return;
+  if (el.dataset.mode) {
+    mode = el.dataset.mode;
+    render();
+  } else if (el.dataset.avatar !== undefined) {
+    avatarId = Number(el.dataset.avatar);
+    render();
+  } else if (el.hasAttribute("data-reveal")) {
+    revealed = !revealed;
+    render();
+  } else if (el.dataset.vote) {
+    selectedVote = el.dataset.vote;
+    render();
+  } else if (el.hasAttribute("data-submit-vote")) {
+    await act("vote", { targetId: selectedVote });
+  } else if (el.hasAttribute("data-copy")) {
+    const invite = `${location.origin}/?room=${state.code}`;
+    try {
+      await navigator.clipboard.writeText(invite);
+      notify("Invite link copied. Send it to your suspects.");
+    } catch {
+      notify(`Share this invite: ${invite}`);
+    }
+  } else if (el.dataset.action) {
+    if (el.dataset.action === "ready") revealed = false;
+    await act(el.dataset.action);
+  }
+});
+app.addEventListener("input", (event) => {
+  if (event.target.id === "nickname") nickname = event.target.value;
+  if (event.target.id === "room-code")
+    roomCode = event.target.value.toUpperCase();
+  if (event.target.id === "guess") guess = event.target.value;
+});
+app.addEventListener("change", (event) => {
+  if (event.target.name === "category")
+    act("categories", {
+      categories: [
+        ...document.querySelectorAll('input[name="category"]:checked'),
+      ].map((el) => el.value),
+    });
+});
+app.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  if (event.target.id === "entry-form") {
+    try {
+      localStorage.setItem("alibi.nickname", nickname);
+      localStorage.setItem("alibi.avatar", String(avatarId));
+    } catch {}
+    await send(mode === "create" ? "room:create" : "room:join", {
+      nickname: nickname.trim(),
+      avatar: avatarId,
+      code: roomCode.trim().toUpperCase(),
+    });
+  }
+  if (event.target.id === "guess-form") await act("guess", { guess });
+});
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden && revealed) {
+    revealed = false;
+    render();
+  }
+});
+window.addEventListener("blur", () => {
+  if (revealed) {
+    revealed = false;
+    render();
+  }
+});
+
+async function boot() {
+  try {
+    const response = await fetch("/api/session", {
+      method: "POST",
+      credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: "{}",
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error);
+    socket = window.io({
+      autoConnect: false,
+      transports: ["websocket", "polling"],
+      tryAllTransports: true,
+      reconnectionDelay: 700,
+      reconnectionDelayMax: 3000,
+    });
+    socket.on("connect", () => {
+      connected = true;
+      render();
+    });
+    socket.on("disconnect", () => {
+      connected = false;
+      revealed = false;
+      render();
+    });
+    socket.on("connect_error", (error) => {
+      connected = false;
+      status.textContent = "Connection interrupted";
+      notify(error.message);
+      render();
+    });
+    socket.on("catalog", (items) => {
+      catalog = items;
+      render();
+    });
+    socket.on("state", (next) => {
+      const previousPhase = state?.phase,
+        previousRound = state?.roundId;
+      if (next?.roundId !== previousRound || next?.phase !== previousPhase) {
+        revealed = false;
+        selectedVote = "";
+        guess = "";
+      }
+      state = next;
+      if (state) {
+        history.replaceState(null, "", `/?room=${state.code}`);
+      } else if (previousPhase) {
+        history.replaceState(null, "", "/");
+        roomCode = "";
+      }
+      render();
+      if (state?.phase !== previousPhase)
+        document.querySelector("#phase-title")?.focus({ preventScroll: true });
+    });
+    socket.connect();
+  } catch (error) {
+    status.textContent = "Not connected";
+    app.innerHTML = `<section class="loading"><h1>Couldn’t pull up a chair.</h1><p>${esc(error.message || "Please check your connection.")}</p><a class="button primary" href="${esc(location.pathname + location.search)}">Try again</a></section>`;
+  }
+}
+boot();
