@@ -67,6 +67,14 @@ Except for the explicitly dated October 6 handoff checks, the browser, device-la
 
 Use `HANDOFF.md` to resume this implementation with Claude. Start the local server and perform the four-session walkthrough. With a later hosting decision and account access, deploy the prepared one-instance Render service; recheck pricing before choosing a paid plan (the September 30 quote was $7/month base plus usage). Then playtest with 4–6 real friends on desktop/physical phones, including Discord switching. Address concrete findings, proxy-aware rate limiting and durable recovery before relying on uninterrupted public rooms. Explore an installable web app, then choose a store-app approach after those playtests; all clients should share this server's rooms and rules.
 
+## Proxy-aware rate limiting, October 6
+
+- `POST /api/session` now limits returning players per session token (30/minute) and new sessions per client address (60/minute). Before, every request was keyed on the TCP peer, so all players behind a reverse proxy, and friends on one network, shared one 60/minute bucket.
+- New `TRUST_PROXY_HOPS` setting (default `0`, validated 0 to 5). With N trusted proxies the client address is the entry N from the right of `X-Forwarded-For` plus the TCP peer; entries further left are client supplied and ignored. IPv4-mapped IPv6 addresses are normalized.
+- **Judgment call:** `render.yaml` sets `TRUST_PROXY_HOPS=1` for Render's proxy. Render does not document its hop count and community reports differ, so this must be confirmed on the first deploy. If it is really 2, the setting fails safe: clients share the proxy's bucket again but cannot spoof around it. Setting it too high would trust a client-supplied entry, so it should never be raised past the confirmed value.
+- **Judgment call:** socket connections and gameplay actions were left as they were. Actions are already limited per authenticated player (80 per 10 seconds) and connections per player (8 tabs), so they are not affected by proxies.
+- Tests: 4 new integration tests (spoofed `X-Forwarded-For` ignored without trusted proxies, separate clients behind one trusted proxy, prepended fake addresses land in the real bucket, returning players unaffected when others on their address hit the limit, invalid hop values rejected). `npm test` 44/44.
+
 ## Ten-player phone check and heading pass, October 6
 
 Requested follow-up to the Lineup pass. No game rules, server code or copy changed.

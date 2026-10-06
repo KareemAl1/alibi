@@ -15,9 +15,16 @@ export async function createAlibiServer({
   store = new GameStore(),
   origin = process.env.PUBLIC_ORIGIN,
   secure = process.env.NODE_ENV === "production",
+  trustProxyHops = Number(process.env.TRUST_PROXY_HOPS || 0),
 } = {}) {
   if (secure && (!origin || !origin.startsWith("https://")))
     throw new Error("Production requires an HTTPS PUBLIC_ORIGIN.");
+  if (
+    !Number.isInteger(trustProxyHops) ||
+    trustProxyHops < 0 ||
+    trustProxyHops > 5
+  )
+    throw new Error("TRUST_PROXY_HOPS must be a whole number from 0 to 5.");
   const app = express();
   const httpServer = createServer(app);
   const sessions = new Map();
@@ -36,6 +43,24 @@ export async function createAlibiServer({
     } catch {
       return false;
     }
+  };
+  // The client address for rate limiting. With no trusted proxies this is the
+  // TCP peer. Behind N trusted reverse proxies, each proxy appends the address
+  // it received from to X-Forwarded-For, so the client is the entry N places
+  // from the right of [...forwarded, peer]. Entries further left are supplied by
+  // the client and never trusted.
+  const clientAddress = (req) => {
+    const peer = req.socket?.remoteAddress || "unknown";
+    let chain = [peer];
+    if (trustProxyHops > 0) {
+      const forwarded = String(req.headers["x-forwarded-for"] || "")
+        .split(",")
+        .map((part) => part.trim())
+        .filter(Boolean);
+      chain = [...forwarded, peer];
+    }
+    const address = chain[Math.max(0, chain.length - 1 - trustProxyHops)];
+    return address.replace(/^::ffff:(?=\d+\.\d+\.\d+\.\d+$)/, "");
   };
   const limited = (map, key, max, windowMs) => {
     const now = Date.now();
@@ -78,11 +103,17 @@ export async function createAlibiServer({
       return res
         .status(403)
         .json({ error: "Open Alibi from its own address to join." });
-    if (limited(requestBuckets, req.socket.remoteAddress, 60, 60_000))
+    // Returning players are limited per session, so friends sharing one
+    // network or proxy address never share a bucket. New sessions are limited
+    // per client address.
+    let session = readSession(req);
+    const bucket = session
+      ? `session:${session.token}`
+      : `address:${clientAddress(req)}`;
+    if (limited(requestBuckets, bucket, session ? 30 : 60, 60_000))
       return res
         .status(429)
         .json({ error: "Too many requests. Please wait a minute." });
-    let session = readSession(req);
     if (!session) {
       if (sessions.size >= 5000)
         return res

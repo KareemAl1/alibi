@@ -145,15 +145,16 @@ For a human four-player test on this PC, use the Codex preview, normal Chrome, C
 
 The server does **not** load `.env` automatically. Set variables in the shell or host dashboard. No secret values belong in the repository.
 
-| Variable               | Default / purpose                                                                                     |
-| ---------------------- | ----------------------------------------------------------------------------------------------------- |
-| `PORT`                 | `3000`; platform-supplied on Render.                                                                  |
-| `HOST`                 | `0.0.0.0`; HTTP listening interface.                                                                  |
-| `NODE_ENV`             | Unset locally; `production` enables Secure cookies and requires an HTTPS origin.                      |
-| `PUBLIC_ORIGIN`        | Unset locally; in production the exact public HTTPS origin, with no path or trailing slash.           |
-| `BROWSER_CHANNEL`      | Browser-test only; defaults to `chrome`.                                                              |
-| `BROWSER_PATH`         | Browser-test and design capture only; path to a specific Chromium build. Overrides `BROWSER_CHANNEL`. |
-| `BROWSER_ARTIFACT_DIR` | Browser-test only; defaults to `artifacts/review`. Keep any alternative output directory out of Git.  |
+| Variable               | Default / purpose                                                                                                                                                                            |
+| ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `PORT`                 | `3000`; platform-supplied on Render.                                                                                                                                                         |
+| `HOST`                 | `0.0.0.0`; HTTP listening interface.                                                                                                                                                         |
+| `NODE_ENV`             | Unset locally; `production` enables Secure cookies and requires an HTTPS origin.                                                                                                             |
+| `PUBLIC_ORIGIN`        | Unset locally; in production the exact public HTTPS origin, with no path or trailing slash.                                                                                                  |
+| `TRUST_PROXY_HOPS`     | `0`; number of trusted reverse proxies appending to `X-Forwarded-For`, used only to find the client address for the new-session rate limit. `render.yaml` sets `1`; confirm on first deploy. |
+| `BROWSER_CHANNEL`      | Browser-test only; defaults to `chrome`.                                                                                                                                                     |
+| `BROWSER_PATH`         | Browser-test and design capture only; path to a specific Chromium build. Overrides `BROWSER_CHANNEL`.                                                                                        |
+| `BROWSER_ARTIFACT_DIR` | Browser-test only; defaults to `artifacts/review`. Keep any alternative output directory out of Git.                                                                                         |
 
 Optional alternate local port, in PowerShell:
 
@@ -180,7 +181,7 @@ Render's `RENDER_EXTERNAL_URL` is referenced by `render.yaml` to populate `PUBLI
 - **September 30 actual preview:** observed offline and rejected-session states, recovered via the page's reload action, and created a new room after restarting the server.
 - **September 30 real elapsed-time socket evidence:** seats retained after 61 seconds, same seat restored at 65 seconds, another retained at 119 seconds and expired at 120.830 seconds. Separate from browser tests; most automated deadline tests otherwise use accelerated clocks.
 - Rooms/sessions are in-memory and single-process. Restart/crash/deploy loses games. Replicas/autoscaling and durable recovery are unsupported.
-- The session request limiter keys on the TCP peer, so proxy clients can share its 60/minute bucket. Address proxy-aware limiting before a broader public launch.
+- The session limiter is proxy-aware since October 6: returning players are limited per session, new sessions per client address, and `TRUST_PROXY_HOPS` (default 0) controls how many `X-Forwarded-For` hops are trusted. `render.yaml` sets 1; confirm the real hop count on the first deploy (see DEPLOYMENT.md).
 - Physical iOS/Android devices, actual Discord switching/OS suspension/lock screen, Safari/Firefox, LAN/firewall connectivity, public HTTPS/WebSocket/cookie flow, hosting capacity, full accessibility and load/soak tests remain unverified. Chromium viewport checks do not prove physical-phone behavior.
 - No known blocking game defect is recorded by the completed checks; this is not a production-readiness guarantee.
 
@@ -195,7 +196,7 @@ Recommended order for the next developer:
 1. Start the existing app, read the dated evidence, and do the separate-session local walkthrough. Preserve the current visual identity and complete multiplayer loop.
 2. After the user's hosting decision, deploy the existing single-instance architecture and verify HTTPS cookies/WebSockets plus a full four-player round at the public URL.
 3. Playtest with real friends on desktop and physical phones, especially Discord switching, network loss, lock/unlock, refresh and host departure. Record failures without conflating automated tests and actual device checks.
-4. Prioritize concrete playtest findings. Plan durable state/session recovery and proxy-aware limits before relying on uninterrupted public games.
+4. Prioritize concrete playtest findings. Plan durable state/session recovery before relying on uninterrupted public games.
 
 ## Future iOS/Android goal
 

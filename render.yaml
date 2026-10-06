@@ -16,6 +16,10 @@ services:
         value: production
       - key: HOST
         value: 0.0.0.0
+      # Render sits in front of the app as a reverse proxy. Confirm the hop
+      # count from X-Forwarded-For during the first deploy (DEPLOYMENT.md).
+      - key: TRUST_PROXY_HOPS
+        value: "1"
       - key: PUBLIC_ORIGIN
         fromService:
           type: web

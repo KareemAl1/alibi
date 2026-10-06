@@ -719,3 +719,77 @@ test("a healthy restarted server rejects old sessions explicitly and a fresh boo
     "a restart does not recover a lost room or private role",
   );
 });
+
+async function sessionServer(t, options = {}) {
+  const server = await createAlibiServer(options);
+  const port = await server.listen(0, "127.0.0.1");
+  const origin = `http://127.0.0.1:${port}`;
+  t.after(() => server.close());
+  const post = async (headers = {}) => {
+    const res = await fetch(`${origin}/api/session`, {
+      method: "POST",
+      headers: { Origin: origin, ...headers },
+    });
+    return {
+      status: res.status,
+      cookie: res.headers.get("set-cookie")?.split(";")[0],
+    };
+  };
+  const burst = async (count, headers) => {
+    const statuses = [];
+    for (let i = 0; i < count; i++) statuses.push((await post(headers)).status);
+    return statuses;
+  };
+  return { post, burst };
+}
+
+test("without trusted proxies, X-Forwarded-For cannot dodge the new-session limit", async (t) => {
+  const { post, burst } = await sessionServer(t);
+  const statuses = [];
+  for (let i = 0; i < 60; i++)
+    statuses.push(
+      (await post({ "X-Forwarded-For": `198.51.100.${i}` })).status,
+    );
+  assert.deepEqual(new Set(statuses), new Set([200]));
+  assert.equal(
+    (await post({ "X-Forwarded-For": "198.51.100.200" })).status,
+    429,
+  );
+  assert.deepEqual(new Set(await burst(2)), new Set([429]));
+});
+
+test("behind one trusted proxy, separate clients get separate buckets and spoofed entries are ignored", async (t) => {
+  const { post, burst } = await sessionServer(t, { trustProxyHops: 1 });
+  const first = { "X-Forwarded-For": "203.0.113.1" };
+  assert.deepEqual(new Set(await burst(60, first)), new Set([200]));
+  assert.equal((await post(first)).status, 429);
+  // A client prepending fake addresses still lands in its real bucket.
+  assert.equal(
+    (await post({ "X-Forwarded-For": "10.9.9.9, 203.0.113.1" })).status,
+    429,
+  );
+  // A different client behind the same proxy is unaffected.
+  assert.equal((await post({ "X-Forwarded-For": "203.0.113.2" })).status, 200);
+});
+
+test("returning players are limited per session, not by a shared network address", async (t) => {
+  const { post, burst } = await sessionServer(t);
+  const returning = await post();
+  assert.equal(returning.status, 200);
+  // Others on the same address exhaust the new-session bucket.
+  await burst(59);
+  assert.equal((await post()).status, 429);
+  // The returning player's refresh still works on its own session bucket.
+  assert.equal((await post({ Cookie: returning.cookie })).status, 200);
+  const own = await burst(29, { Cookie: returning.cookie });
+  assert.deepEqual(new Set(own), new Set([200]));
+  assert.equal((await post({ Cookie: returning.cookie })).status, 429);
+});
+
+test("TRUST_PROXY_HOPS must be a small whole number", async () => {
+  for (const trustProxyHops of [-1, 1.5, 9, Number.NaN])
+    await assert.rejects(
+      createAlibiServer({ trustProxyHops }),
+      /TRUST_PROXY_HOPS/,
+    );
+});
