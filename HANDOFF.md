@@ -4,7 +4,7 @@ Prepared October 6, 2026 for continuing development with Claude. This handoff ch
 
 ## Start here
 
-- Local project folder: `C:\Users\karee_4m899us\OneDrive\Documents\ChatGPT\imposter`
+- Local project folder: `C:\Users\karee_4m899us\Documents\Projects\alibi`
 - Private GitHub repository: https://github.com/KareemAl1/alibi
 - Development branch: `codex/alibi`. Continue from this branch and its latest commit, not from an unrelated project.
 - The last implementation commit before this documentation handoff is `f3853fa` (reconnect feedback and local-playtest preparation). `git log -5 --oneline` shows the subsequent handoff commit.
@@ -96,7 +96,7 @@ Prerequisites: Node.js 22 (use a maintained 22.x patch; `.node-version` is `22`)
 For this existing Windows checkout, in PowerShell:
 
 ```powershell
-Set-Location 'C:\Users\karee_4m899us\OneDrive\Documents\ChatGPT\imposter'
+Set-Location 'C:\Users\karee_4m899us\Documents\Projects\alibi'
 git status --short
 npm ci
 npm start

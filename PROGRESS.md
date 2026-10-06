@@ -2,6 +2,8 @@
 
 Updated October 6, 2026 for the Claude handoff. The browser multiplayer and usability milestone is implemented. The local server is currently stopped (localhost:3000 refused connection on October 6). Source repository: **https://github.com/KareemAl1/alibi**, private, development branch `codex/alibi`. Hosting is prepared but not deployed. Read [HANDOFF.md](HANDOFF.md) for setup and continuation instructions.
 
+Local project folder: `C:\Users\karee_4m899us\Documents\Projects\alibi` (moved from the former OneDrive `Documents\ChatGPT\imposter` folder).
+
 ## Completed
 
 - Inspected the empty workspace and applicable instructions; preserved the Git repository and configured identity. Wrote `PLAN.md` before implementation.
