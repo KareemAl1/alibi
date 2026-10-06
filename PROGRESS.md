@@ -67,6 +67,43 @@ Except for the explicitly dated October 6 handoff checks, the browser, device-la
 
 Use `HANDOFF.md` to resume this implementation with Claude. Start the local server and perform the four-session walkthrough. With a later hosting decision and account access, deploy the prepared one-instance Render service; recheck pricing before choosing a paid plan (the September 30 quote was $7/month base plus usage). Then playtest with 4–6 real friends on desktop/physical phones, including Discord switching. Address concrete findings, proxy-aware rate limiting and durable recovery before relying on uninterrupted public rooms. Explore an installable web app, then choose a store-app approach after those playtests; all clients should share this server's rooms and rules.
 
+## Visual direction pass, October 6
+
+Commits `5cce05b` (direction studies) and `80e9d07` (Lineup applied). No game rules, server code, word pool or game copy changed.
+
+**Process.** Built three directions as CSS layers over the real app, not mockups, and captured each one by playing a real four-player round with `design/capture.mjs` (desktop 1280px and phone 390px, every phase). Studies and their fonts stay in `design/directions/` and `design/fonts/` for reference; they are not served.
+
+- **A. Lineup (chosen):** the vote and lobby become a police lineup. Suspects stand on a floor line against a height chart with a black name placard; condensed signage type (Big Shoulders Display) for headings, Archivo for reading text.
+- **B. Case file:** manila folder panels with tabs, typed (Courier Prime) secret word and room code, polaroid-style vote cards, rubber stamp outcomes.
+- **C. Lamp:** noir Bodoni Moda headings and a single lamp glow on the current focus, unlit suspects until chosen.
+
+**Judgment calls**
+
+- Picked Lineup because it turns the game's climax (the accusation) into something specific to this game, and it moves the type off the default serif-on-cream look. Case file read well but mostly restyled panels; Lamp's Bodoni spaced badly at headline sizes ("W ho's") and its dark-plus-one-glow treatment is a common default.
+- Borrowed B's rubber stamp for the results card (SOLVED / ESCAPED / INTERRUPTED), larger and double-ruled. Kept it inside the card: a multiply blend made the overhanging part disappear against the dark page.
+- Kept the identity: ink background, cream case-file panels, orange accent, the suspects illustration and all eight SVG avatars. Orange shifted slightly from `#f5824e` to a sodium-lamp `#ff6a2b`; ink from `#191b20` to `#15161a`; cream to `#eee3cb`. Primary button text stays dark ink on orange.
+- The `alibi.` wordmark now uses Big Shoulders Display (still lowercase with the orange dot) instead of bold Georgia, so it matches the heading type.
+- Headings and primary buttons are set in uppercase via CSS only; the copy strings in `public/app.js` are unchanged. The existing all-caps eyebrow lines ("NO PEEKING. NO SELF-VOTES.") were kept as the game's voice; only their letter spacing was tightened.
+- Timers moved from a monospace face to tabular Archivo figures.
+- Fonts are self-hosted in `public/fonts/` (OFL 1.1, license copied in `public/fonts/LICENSE.txt`), so the existing `font-src 'self'` policy is unchanged and no third-party requests were added. Total about 125KB; the heading font is preloaded.
+- The new layer lives in `public/lineup.css`, loaded after `style.css`, rather than rewriting the 1,800-line `theme.css`. Layout and markup stay where they were.
+- The 2.7MB `interrogation.png` is now served as a 228KB WebP at the same 1536x1024 resolution through `<picture>`, with the original PNG kept as fallback. The two `<picture>` wrappers are the only changes to `public/app.js`.
+
+**Fixes found during the pass (visual only)**
+
+- The entry art caption ("Someone at this table is winging it.") was drawn on top of the table and unreadable; it now sits under the art.
+- On phones the entry art was placed behind the headline at reduced opacity and effectively invisible; it now shows as its own block under the intro, with its caption.
+- The lobby art caption got a dark strip so it reads over the illustration.
+- The vote grid used three columns, leaving the fourth suspect alone on a second row; it now fits the whole lineup on one row on desktop and two by two on phones.
+
+**Verification (this pass)**
+
+- `npm test`: 40/40 after each step.
+- `npm run test:browser` with `BROWSER_PATH` pointing at Playwright's Chromium in the cloud workspace: all 13 browser checks passed, including four complete rounds, rematches from the phone action bar, offline/refresh recovery, host departure, late arrival, imposter privacy, 1280/390/320px with no horizontal overflow, 44px minimum actions and keyboard focus. `test/browser-smoke.js` now accepts an optional `BROWSER_PATH`; without it, it still uses the installed Chrome channel.
+- Prettier check and `git diff --check` passed.
+- Screens reviewed by eye from screenshots: entry, lobby, both private cards, speaker and listener clue turns, discussion, voting, final guess and results at desktop and phone widths.
+- Not checked: real phones, Safari/Firefox, screen readers, or the user's own Windows browsers. All of the above ran in headless Chromium in a cloud workspace against a local server.
+
 ## Claude handoff — October 6
 
 - Reviewed a clean working tree at `f3853fa`; there were no outstanding uncommitted implementation changes. Added `HANDOFF.md` and refreshed status documentation without changing features, game rules, assets or application code.

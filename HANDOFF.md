@@ -16,7 +16,7 @@ Prepared October 6, 2026 for continuing development with Claude. This handoff ch
 
 Alibi is a real-time secret-word party game for **4–10 friends** talking on Discord or another external voice call. The website handles rooms, secrets, speaking order, votes and results. It does not capture audio or accept typed clues.
 
-Keep its late-night interrogation identity: dark ink background, warm cream case-file panels, orange accents, illustrated suspects, and expressive local SVG avatars. Playful category titles also show plain-language categories. Phone layouts have larger touch targets, safe-area padding and a reachable main action.
+Keep its late-night interrogation identity: dark ink background, warm cream case-file panels, orange accents, illustrated suspects, and expressive local SVG avatars. Since October 6 the lobby and vote are styled as a police lineup (height chart, name placards, Big Shoulders Display headings, Archivo body); see the visual direction entry in PROGRESS.md. Playful category titles also show plain-language categories. Phone layouts have larger touch targets, safe-area padding and a reachable main action.
 
 Do not rebuild the project or add modes, accounts, payments, public matchmaking, AI-generated words, extra roles, built-in voice, or mobile implementation without a new user request. The next product milestone is a small real-friends browser playtest.
 
@@ -69,23 +69,25 @@ The latest connection fix distinguishes automatic transport reconnect from an au
 
 ## Important files
 
-| File                                                                      | Purpose                                                                                                 |
-| ------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
-| `server/game.js`                                                          | Authoritative state machine, permissions, recovery and recipient snapshots.                             |
-| `server/index.js`                                                         | Express/Socket.IO server, session cookies, origins, limits, sweeps and startup.                         |
-| `server/words.js`                                                         | Curated categories, words and aliases; guess normalization lives in server/game.js.                     |
-| `shared/protocol.js`                                                      | Reusable public timing/error/action contract.                                                           |
-| `public/app.js`                                                           | Browser rendering, controls, invite handling and connection lifecycle.                                  |
-| `public/index.html`, `public/style.css`                                   | Page shell and current responsive styling. Preserve existing assets/theme files.                        |
-| `public/avatars.js`, `public/art/interrogation.png`, `public/favicon.svg` | Existing visual identity and local assets.                                                              |
-| `test/game.test.js`                                                       | 25 engine tests.                                                                                        |
-| `test/integration.test.js`                                                | 15 actual HTTP/Socket.IO tests, including restart/session recovery.                                     |
-| `test/browser-smoke.js`                                                   | Four independent headless Chrome sessions, real UI actions, passive network assertions and screenshots. |
-| `package.json`, `package-lock.json`, `.node-version`                      | Commands, dependencies and Node version.                                                                |
-| `.env.example`, `.gitignore`                                              | Non-secret configuration examples and local/secret exclusions.                                          |
-| `render.yaml`, `DEPLOYMENT.md`                                            | Proposed single-service hosting configuration; not deployed.                                            |
-| `PLAN.md`, `PROGRESS.md`                                                  | State-machine specification, dated evidence, issues and next steps.                                     |
-| `LOCAL-PLAYTEST.md`, `PUBLICATION.md`, `FUTURE-MOBILE.md`                 | Manual playthrough, publication audit and later mobile direction.                                       |
+| File                                                                      | Purpose                                                                                                                          |
+| ------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| `server/game.js`                                                          | Authoritative state machine, permissions, recovery and recipient snapshots.                                                      |
+| `server/index.js`                                                         | Express/Socket.IO server, session cookies, origins, limits, sweeps and startup.                                                  |
+| `server/words.js`                                                         | Curated categories, words and aliases; guess normalization lives in server/game.js.                                              |
+| `shared/protocol.js`                                                      | Reusable public timing/error/action contract.                                                                                    |
+| `public/app.js`                                                           | Browser rendering, controls, invite handling and connection lifecycle.                                                           |
+| `public/index.html`, `public/style.css`                                   | Page shell and current responsive styling. Preserve existing assets/theme files.                                                 |
+| `public/avatars.js`, `public/art/interrogation.png`, `public/favicon.svg` | Existing visual identity and local assets.                                                                                       |
+| `public/lineup.css`, `public/fonts/`, `public/art/interrogation.webp`     | Lineup visual layer (October 6), self-hosted OFL fonts, and the compressed hero art served before the PNG fallback.              |
+| `design/capture.mjs`, `design/directions/`                                | Design review tooling: plays a real round and screenshots every phase, optionally with a direction study layered on. Not served. |
+| `test/game.test.js`                                                       | 25 engine tests.                                                                                                                 |
+| `test/integration.test.js`                                                | 15 actual HTTP/Socket.IO tests, including restart/session recovery.                                                              |
+| `test/browser-smoke.js`                                                   | Four independent headless Chrome sessions, real UI actions, passive network assertions and screenshots.                          |
+| `package.json`, `package-lock.json`, `.node-version`                      | Commands, dependencies and Node version.                                                                                         |
+| `.env.example`, `.gitignore`                                              | Non-secret configuration examples and local/secret exclusions.                                                                   |
+| `render.yaml`, `DEPLOYMENT.md`                                            | Proposed single-service hosting configuration; not deployed.                                                                     |
+| `PLAN.md`, `PROGRESS.md`                                                  | State-machine specification, dated evidence, issues and next steps.                                                              |
+| `LOCAL-PLAYTEST.md`, `PUBLICATION.md`, `FUTURE-MOBILE.md`                 | Manual playthrough, publication audit and later mobile direction.                                                                |
 
 `artifacts/` contains local screenshots, browser reports, logs and a real-time recovery script/report. It is intentionally ignored and **will not be in a fresh clone**. Generate fresh browser evidence with the command below; do not force-add local sessions/logs to Git.
 
@@ -143,14 +145,15 @@ For a human four-player test on this PC, use the Codex preview, normal Chrome, C
 
 The server does **not** load `.env` automatically. Set variables in the shell or host dashboard. No secret values belong in the repository.
 
-| Variable               | Default / purpose                                                                                    |
-| ---------------------- | ---------------------------------------------------------------------------------------------------- |
-| `PORT`                 | `3000`; platform-supplied on Render.                                                                 |
-| `HOST`                 | `0.0.0.0`; HTTP listening interface.                                                                 |
-| `NODE_ENV`             | Unset locally; `production` enables Secure cookies and requires an HTTPS origin.                     |
-| `PUBLIC_ORIGIN`        | Unset locally; in production the exact public HTTPS origin, with no path or trailing slash.          |
-| `BROWSER_CHANNEL`      | Browser-test only; defaults to `chrome`.                                                             |
-| `BROWSER_ARTIFACT_DIR` | Browser-test only; defaults to `artifacts/review`. Keep any alternative output directory out of Git. |
+| Variable               | Default / purpose                                                                                     |
+| ---------------------- | ----------------------------------------------------------------------------------------------------- |
+| `PORT`                 | `3000`; platform-supplied on Render.                                                                  |
+| `HOST`                 | `0.0.0.0`; HTTP listening interface.                                                                  |
+| `NODE_ENV`             | Unset locally; `production` enables Secure cookies and requires an HTTPS origin.                      |
+| `PUBLIC_ORIGIN`        | Unset locally; in production the exact public HTTPS origin, with no path or trailing slash.           |
+| `BROWSER_CHANNEL`      | Browser-test only; defaults to `chrome`.                                                              |
+| `BROWSER_PATH`         | Browser-test and design capture only; path to a specific Chromium build. Overrides `BROWSER_CHANNEL`. |
+| `BROWSER_ARTIFACT_DIR` | Browser-test only; defaults to `artifacts/review`. Keep any alternative output directory out of Git.  |
 
 Optional alternate local port, in PowerShell:
 
