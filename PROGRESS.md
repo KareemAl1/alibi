@@ -67,6 +67,33 @@ Except for the explicitly dated October 6 handoff checks, the browser, device-la
 
 Use `HANDOFF.md` to resume this implementation with Claude. Start the local server and perform the four-session walkthrough. With a later hosting decision and account access, deploy the prepared one-instance Render service; recheck pricing before choosing a paid plan (the September 30 quote was $7/month base plus usage). Then playtest with 4–6 real friends on desktop/physical phones, including Discord switching. Address concrete findings, proxy-aware rate limiting and durable recovery before relying on uninterrupted public rooms. Explore an installable web app, then choose a store-app approach after those playtests; all clients should share this server's rooms and rules.
 
+## Motion check and interaction pass, October 6
+
+**Why motion looked missing on Kareem's PC.** Checked in the desktop app's browser pane against the PC's own `localhost:3000`: GSAP 3.15.0 loaded and the View Transitions API was present, but `prefers-reduced-motion: reduce` was **true**. Windows reports that whenever Settings > Accessibility > Visual effects > Animation effects is off (also switched off by "Adjust for best performance" and some remote-desktop setups). The game was correctly obeying it and skipping all motion. Not a code bug, but reduced motion was all-or-nothing.
+
+**Fix.**
+
+- New header toggle, "Motion on" / "Motion reduced". It follows the device until the player taps it; the choice is stored in `localStorage` (`alibi.motion`) on that device only. The tooltip says when the device is the one asking for reduced motion.
+- `<html data-motion="full|reduced">` is the single switch. The device media query still applies until the script sets it, and a player who picks full motion is no longer overridden by the old blanket CSS rule.
+- Reduced mode now keeps 0.2s fades on what changed (phase heading and text, your card's contents, the results card) and color transitions on hover and press. Nothing moves, scales or rotates, and no view transitions run.
+
+**Interaction pass (full motion only).**
+
+- Press and hover feedback on every button, tab, avatar option, category, header toggle and suspect: a 2px lift on hover (hover-capable pointers only, so phones never get stuck hover states), a quick squish on press, a soft glow on primary buttons. Suspects you can vote for step forward on hover and squash when pressed; your chosen suspect stays stepped forward.
+- Lobby idle: suspects shift their weight and blink out of step with each other, empty seats pulse slowly, and the lamp in the art hums.
+- Speaking turn: the speaker sways under the lamp and the current row in the speaking order bobs as if talking; both pause when the host pauses the round.
+- Voting: the "votes locked" count pops each time someone else locks in.
+- Reveal: on the results lineup every suspect gets one tally stroke per vote on the deciding ballot, and flinches as each of their strokes lands while the ballot reads out. Votes stay private until the ballot closes, so suspects cannot react to votes during voting; the reactions happen at the reveal.
+- Phase changes: the view transition now rises in (10px, 0.34s ease-out) while the old screen lifts away (8px, 0.22s).
+
+**Judgment calls**
+
+- Respecting the device setting by default, with a visible override, rather than ignoring it: some players need reduced motion, and the override fixes the case where Windows turns it off for other reasons.
+- Tallies are new on-screen information but only derived from the deciding ballot already shown in "The votes, unsealed" on results.
+- Idle loops only animate transform and opacity, and only in the lobby and for the current speaker.
+
+**Checks.** `design/motion-perf.mjs` now has `--override` (device reduced, player turned motion on): all moments play, p95 16.8 to 33ms at 4x CPU. `--reduced`: 0 view transitions, 0 GSAP moments, p95 16.8ms. `npm test` 44/44, `npm run test:browser` 13/13, design capture and ten-player check clean. Verified in headless Chromium; the fix on the PC itself is the toggle, so the PC was not re-tested after the change.
+
 ## Motion pass, October 6
 
 GSAP 3.15.0 (runtime dependency, pinned, served by the app at `/vendor/gsap.min.js`; no CDN) plus the View Transitions API. All motion lives in `public/motion.js`; `public/app.js` only calls it at four points (phase change, card reveal, vote pick, speaking turn). No game rules, server rules or copy changed.

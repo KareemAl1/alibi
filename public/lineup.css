@@ -483,42 +483,43 @@ input,
 .motion-ch {
   display: inline-block;
 }
-@media (prefers-reduced-motion: no-preference) {
-  .site-header {
-    view-transition-name: site-header;
-  }
-  .room-bar {
-    view-transition-name: room-bar;
-  }
-  .phase-steps {
-    view-transition-name: phase-steps;
-  }
-  .action-dock {
-    view-transition-name: action-dock;
-  }
-  /* Chrome stays put (the page also scrolls to the top on a phase change),
-     its contents crossfade in place. */
-  ::view-transition-group(site-header),
-  ::view-transition-group(room-bar),
-  ::view-transition-group(phase-steps),
-  ::view-transition-group(action-dock) {
-    animation-duration: 0s;
-  }
-  ::view-transition-old(root) {
-    animation: 0.2s cubic-bezier(0.4, 0, 1, 1) both alibi-leave;
-  }
-  ::view-transition-new(root) {
-    animation: 0.28s cubic-bezier(0, 0, 0.2, 1) both alibi-enter;
-  }
+/* View transitions only run in full motion (motion.js checks), so these
+   names are scoped to it. */
+html[data-motion="full"] .site-header {
+  view-transition-name: site-header;
+}
+html[data-motion="full"] .room-bar {
+  view-transition-name: room-bar;
+}
+html[data-motion="full"] .phase-steps {
+  view-transition-name: phase-steps;
+}
+html[data-motion="full"] .action-dock {
+  view-transition-name: action-dock;
+}
+/* Chrome stays put (the page also scrolls to the top on a phase change),
+   its contents crossfade in place. */
+::view-transition-group(site-header),
+::view-transition-group(room-bar),
+::view-transition-group(phase-steps),
+::view-transition-group(action-dock) {
+  animation-duration: 0s;
+}
+::view-transition-old(root) {
+  animation: 0.22s cubic-bezier(0.4, 0, 1, 1) both alibi-leave;
+}
+::view-transition-new(root) {
+  animation: 0.34s cubic-bezier(0.16, 1, 0.3, 1) both alibi-enter;
 }
 @keyframes alibi-leave {
   to {
     opacity: 0;
-    transform: translateY(-10px);
+    transform: translateY(-8px);
   }
 }
 @keyframes alibi-enter {
   from {
     opacity: 0;
+    transform: translateY(10px);
   }
 }

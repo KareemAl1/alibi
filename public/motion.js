@@ -8,11 +8,53 @@
 // - app.js re-renders the whole page on every state update, so a running moment
 //   is rebuilt on the new elements and fast-forwarded to where it was, instead
 //   of being cut off.
-// - With prefers-reduced-motion, or without GSAP, nothing animates.
+// - Motion has two modes, set on <html data-motion>: "full", and "reduced",
+//   which keeps short fades and color changes but nothing that moves, scales
+//   or rotates. The mode follows the device's prefers-reduced-motion setting
+//   until the player picks one with the header toggle (remembered locally).
 
 const reduceQuery = matchMedia("(prefers-reduced-motion: reduce)");
 const lib = () => window.gsap;
-export const motionAllowed = () => !reduceQuery.matches && Boolean(lib());
+const PREF_KEY = "alibi.motion";
+
+export function motionPreference() {
+  try {
+    const value = localStorage.getItem(PREF_KEY);
+    return value === "full" || value === "reduced" ? value : "system";
+  } catch {
+    return "system";
+  }
+}
+export function motionMode() {
+  const pref = motionPreference();
+  if (pref !== "system") return pref;
+  return reduceQuery.matches ? "reduced" : "full";
+}
+/** True when the device itself asks for reduced motion. */
+export const deviceReducesMotion = () => reduceQuery.matches;
+export function setMotionPreference(value) {
+  try {
+    if (value === "system") localStorage.removeItem(PREF_KEY);
+    else localStorage.setItem(PREF_KEY, value);
+  } catch {}
+  applyMotionMode();
+}
+function applyMotionMode() {
+  document.documentElement.dataset.motion = motionMode();
+}
+reduceQuery.addEventListener?.("change", applyMotionMode);
+applyMotionMode();
+
+export const motionAllowed = () => motionMode() === "full" && Boolean(lib());
+const gentleAllowed = () => motionMode() === "reduced" && Boolean(lib());
+
+// Reduced mode: a short fade on what changed, no movement.
+const gentle = {
+  phase:
+    "#phase-title, .stage > p, .results-heading, .result-card, .result-next",
+  card: ".private-card .role-content",
+  results: ".results-heading, .result-card, .result-next, .ballot-details",
+};
 
 let active = null; // { key, build, startedAt, duration, timeline }
 // Elapsed time is measured on GSAP's own clock so a rebuilt moment resumes
@@ -45,6 +87,24 @@ export function transition(update, kind = "phase") {
 
 /** Start a named moment for the current render key. */
 export function play(name, key) {
+  if (gentleAllowed()) {
+    const targets =
+      name === "card"
+        ? gentle.card
+        : name === "results"
+          ? gentle.results
+          : ["select", "vote-tick", "turn-other", "turn-me"].includes(name)
+            ? null
+            : gentle.phase;
+    if (targets)
+      lib().from(targets, {
+        opacity: 0,
+        duration: 0.2,
+        ease: "none",
+        clearProps: "opacity",
+      });
+    return;
+  }
   if (!motionAllowed()) return;
   const build = moments[name];
   if (!build) return;
@@ -288,6 +348,17 @@ const moments = {
       );
   },
 
+  // Someone else locked a vote: the participation count ticks over.
+  "vote-tick"(g) {
+    return g
+      .timeline(clean)
+      .fromTo(
+        ".vote-progress b",
+        { scale: 1.35, color: "#ff6a2b" },
+        { scale: 1, color: "", duration: 0.32, ease: "back.out(2)" },
+      );
+  },
+
   // The ballot closes and the group caught someone: the accusation lands.
   guess(g) {
     const tl = g.timeline(clean);
@@ -418,6 +489,41 @@ const moments = {
       { y: 14, opacity: 0, duration: 0.3, stagger: 0.05, ease: "power2.out" },
       1.4,
     );
+    // The deciding ballot reads out and each named suspect flinches as their
+    // tally mark lands in the lineup.
+    const finalRows = [
+      ...document.querySelectorAll(".ballot-details .ballot:last-child > div"),
+    ];
+    const each = Math.min(0.07, 0.45 / Math.max(1, finalRows.length - 1));
+    const seen = new Map();
+    finalRows.forEach((row, i) => {
+      const id = row.dataset.target;
+      const tile =
+        id &&
+        document.querySelector(`.player-tile[data-player="${CSS.escape(id)}"]`);
+      if (!tile) return;
+      const n = seen.get(id) || 0;
+      seen.set(id, n + 1);
+      const at = 1.7 + i * each + 0.1;
+      const mark = tile.querySelectorAll(".tally i")[n];
+      if (mark)
+        tl.from(
+          mark,
+          { scaleY: 0, opacity: 0, duration: 0.16, ease: "back.out(3)" },
+          at,
+        );
+      tl.fromTo(
+        tile.querySelector(".avatar"),
+        { y: 0, rotation: 0 },
+        {
+          keyframes: [
+            { y: -7, rotation: n % 2 ? 5 : -5, duration: 0.09 },
+            { y: 0, rotation: 0, duration: 0.18, ease: "power2.out" },
+          ],
+        },
+        at,
+      );
+    });
     tl.from(
       ".ballot-details .ballot > div",
       {

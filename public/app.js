@@ -1,5 +1,12 @@
 import { AVATARS, avatar } from "./avatars.js";
-import { afterRender, play, transition } from "./motion.js";
+import {
+  afterRender,
+  deviceReducesMotion,
+  motionMode,
+  play,
+  setMotionPreference,
+  transition,
+} from "./motion.js";
 import {
   CONNECTION_ERRORS,
   GAME_TIMING,
@@ -104,7 +111,7 @@ function playerGrid() {
     (p) => p.connected && !p.departed,
   ).length;
   const players = state.players.filter((p) => !p.departed);
-  return `<section class="players-section"><div class="section-title"><h3>The usual suspects</h3><span>${connectedCount}<span class="dim"> / 10</span></span></div><div class="players-grid">${players.map((p) => `<div class="player-tile ${p.connected ? "" : "disconnected"}">${avatar(p.avatar)}<div><b>${esc(p.nickname)}${p.id === state.me.id ? ' <span class="you">you</span>' : ""}</b><span class="player-status">${p.id === state.hostId ? "Host" : p.waiting ? "Next round" : p.connected ? "In the room" : "Reconnecting…"}</span></div>${p.connected ? '<span class="online-dot" aria-label="Connected"></span>' : ""}</div>`).join("")}${Array.from({ length: Math.max(0, 4 - players.length) }, () => `<div class="player-tile empty"><div class="empty-avatar">?</div><span>Saving a seat…</span></div>`).join("")}</div><div class="room-tip"><span aria-hidden="true">✳</span><p>${connectedCount < 4 ? `Need ${4 - connectedCount} more ${4 - connectedCount === 1 ? "friend" : "friends"} to start. Send them your invite link.` : "The table is ready. Make sure everyone is on the voice call."}</p></div></section>`;
+  return `<section class="players-section"><div class="section-title"><h3>The usual suspects</h3><span>${connectedCount}<span class="dim"> / 10</span></span></div><div class="players-grid">${players.map((p) => `<div class="player-tile ${p.connected ? "" : "disconnected"}" data-player="${esc(p.id)}">${avatar(p.avatar)}<div><b>${esc(p.nickname)}${p.id === state.me.id ? ' <span class="you">you</span>' : ""}</b><span class="player-status">${p.id === state.hostId ? "Host" : p.waiting ? "Next round" : p.connected ? "In the room" : "Reconnecting…"}</span>${tally(p.id)}</div>${p.connected ? '<span class="online-dot" aria-label="Connected"></span>' : ""}</div>`).join("")}${Array.from({ length: Math.max(0, 4 - players.length) }, () => `<div class="player-tile empty"><div class="empty-avatar">?</div><span>Saving a seat…</span></div>`).join("")}</div><div class="room-tip"><span aria-hidden="true">✳</span><p>${connectedCount < 4 ? `Need ${4 - connectedCount} more ${4 - connectedCount === 1 ? "friend" : "friends"} to start. Send them your invite link.` : "The table is ready. Make sure everyone is on the voice call."}</p></div></section>`;
 }
 
 function categories() {
@@ -178,9 +185,20 @@ function mainStage() {
   return "";
 }
 
+// Votes each suspect got on the deciding ballot, shown only once results are
+// public (ballots are already revealed there).
+function tally(id) {
+  const final =
+    state.phase === "results" ? state.result?.ballots?.at(-1) : null;
+  if (!final) return "";
+  const count = final.votes.filter((v) => v.targetId === id).length;
+  if (!count) return "";
+  return `<span class="tally" aria-label="${count} ${count === 1 ? "vote" : "votes"}">${'<i aria-hidden="true"></i>'.repeat(count)}</span>`;
+}
+
 function ballots(items) {
   if (!items?.length) return "";
-  return `<details class="ballot-details" ${state.phase === "results" ? "open" : ""}><summary>The votes, unsealed <span>${items.length} ballot${items.length === 1 ? "" : "s"}</span></summary>${items.map((b) => `<div class="ballot"><h3>${b.runoff ? "Runoff" : "First vote"}</h3>${b.votes.map((v) => `<div><span>${esc(name(v.voterId))}</span><span class="dim">voted for</span><b>${esc(name(v.targetId))}</b></div>`).join("")}</div>`).join("")}</details>`;
+  return `<details class="ballot-details" ${state.phase === "results" ? "open" : ""}><summary>The votes, unsealed <span>${items.length} ballot${items.length === 1 ? "" : "s"}</span></summary>${items.map((b) => `<div class="ballot"><h3>${b.runoff ? "Runoff" : "First vote"}</h3>${b.votes.map((v) => `<div data-target="${esc(v.targetId)}"><span>${esc(name(v.voterId))}</span><span class="dim">voted for</span><b>${esc(name(v.targetId))}</b></div>`).join("")}</div>`).join("")}</details>`;
 }
 
 function results() {
@@ -472,6 +490,28 @@ window.addEventListener("blur", () => {
   }
 });
 
+// Header motion toggle. It starts on whatever the device asks for and the
+// player can override it; the choice is remembered on this device only.
+const motionToggle = document.querySelector("#motion-toggle");
+function syncMotionToggle() {
+  if (!motionToggle) return;
+  const full = motionMode() === "full";
+  motionToggle.setAttribute("aria-pressed", String(full));
+  motionToggle.querySelector("span").textContent = full
+    ? "Motion on"
+    : "Motion reduced";
+  motionToggle.title = full
+    ? "Animations are on. Tap for reduced motion."
+    : deviceReducesMotion()
+      ? "Your device asks for reduced motion, so only gentle fades play. Tap to turn full motion on."
+      : "Only gentle fades play. Tap to turn full motion on.";
+}
+motionToggle?.addEventListener("click", () => {
+  setMotionPreference(motionMode() === "full" ? "reduced" : "full");
+  syncMotionToggle();
+});
+syncMotionToggle();
+
 async function boot() {
   try {
     const response = await fetch("/api/session", {
@@ -580,7 +620,12 @@ async function boot() {
         next.turn?.currentId !== previousSpeaker
       )
         withMoment();
-      else apply();
+      else {
+        const before = state?.voting?.submitted ?? 0;
+        apply();
+        if ((next?.voting?.submitted ?? 0) > before)
+          play("vote-tick", lastRenderKey);
+      }
     });
     socket.connect();
   } catch (error) {

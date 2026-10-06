@@ -1,0 +1,287 @@
+/* Interaction and idle motion. Loaded after lineup.css.
+   <html data-motion="full"> gets press/hover feedback, idle life in the lobby
+   and the speaker's talking bob. <html data-motion="reduced"> keeps color and
+   opacity changes only. Everything that loops animates transform or opacity
+   so phones can composite it without repainting. */
+
+/* Header toggles (motion now, sound later) */
+.header-controls {
+  display: flex;
+  gap: 8px;
+  margin-left: 4px;
+}
+.header-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 36px;
+  padding: 6px 12px;
+  border: 1px solid #ffffff24;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+.header-toggle::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: 1.5px solid currentColor;
+}
+.header-toggle[aria-pressed="true"] {
+  color: var(--text);
+  border-color: #ffffff40;
+}
+.header-toggle[aria-pressed="true"]::before {
+  background: var(--orange);
+  border-color: var(--orange);
+}
+.header-toggle:hover {
+  color: var(--text);
+  border-color: #ffffff55;
+}
+@media (max-width: 760px) {
+  .header-toggle {
+    min-height: 40px;
+    padding: 6px 10px;
+  }
+}
+@media (max-width: 440px) {
+  /* Phones: the dot carries the state, the label stays for screen readers. */
+  .header-toggle span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  .header-toggle {
+    width: 40px;
+    justify-content: center;
+    padding: 0;
+  }
+}
+
+/* Reduced: color and opacity may change, nothing moves. */
+html[data-motion="reduced"] *,
+html[data-motion="reduced"] *::before,
+html[data-motion="reduced"] *::after {
+  animation: none !important;
+  transition-property:
+    color, background-color, border-color, opacity !important;
+  transition-duration: 0.15s !important;
+  scroll-behavior: auto !important;
+}
+
+/* Full: feedback on everything you can press. */
+html[data-motion="full"] .button,
+html[data-motion="full"] .tabs button,
+html[data-motion="full"] .avatar-option,
+html[data-motion="full"] .category,
+html[data-motion="full"] .header-toggle,
+html[data-motion="full"] .room-code,
+html[data-motion="full"] .text-button,
+html[data-motion="full"] .vote-candidate .avatar,
+html[data-motion="full"] .vote-candidate b {
+  transition:
+    transform 0.16s cubic-bezier(0.2, 0, 0, 1),
+    background-color 0.16s,
+    border-color 0.16s,
+    color 0.16s,
+    box-shadow 0.2s;
+}
+@media (hover: hover) {
+  html[data-motion="full"] .button:hover:not(:disabled),
+  html[data-motion="full"] .tabs button:hover:not(.selected),
+  html[data-motion="full"] .room-code:hover {
+    transform: translateY(-2px);
+  }
+  html[data-motion="full"] .button.primary:hover:not(:disabled),
+  html[data-motion="full"] .button[data-primary]:hover:not(:disabled) {
+    box-shadow: 0 8px 22px #ff6a2b38;
+  }
+  html[data-motion="full"] .avatar-option:hover:not(.selected) {
+    transform: translateY(-3px) rotate(-4deg);
+  }
+  html[data-motion="full"] .category:hover:not(:has(input:disabled)) {
+    transform: translateX(3px);
+  }
+  /* A suspect you could vote for steps forward when you point at them. */
+  html[data-motion="full"] .vote-candidate:not(:disabled):hover .avatar {
+    transform: translateY(-6px) rotate(-3deg);
+  }
+}
+html[data-motion="full"] .button:active:not(:disabled),
+html[data-motion="full"] .tabs button:active,
+html[data-motion="full"] .header-toggle:active,
+html[data-motion="full"] .text-button:active {
+  transform: translateY(1px) scale(0.97);
+  transition-duration: 0.06s;
+}
+html[data-motion="full"] .avatar-option:active {
+  transform: scale(0.9);
+  transition-duration: 0.06s;
+}
+html[data-motion="full"] .vote-candidate:not(:disabled):active .avatar {
+  transform: translateY(2px) scale(0.94, 0.9);
+  transition-duration: 0.06s;
+}
+html[data-motion="full"] .vote-candidate.selected .avatar {
+  transform: translateY(-4px);
+}
+
+/* Idle life in the lobby: suspects shift their weight and blink, out of step
+   with each other. */
+html[data-motion="full"] [data-phase="lobby"] .player-tile:not(.empty) .avatar {
+  animation: alibi-shift 4.2s ease-in-out infinite;
+  transform-origin: 50% 100%;
+}
+html[data-motion="full"]
+  [data-phase="lobby"]
+  .player-tile:nth-child(2n)
+  .avatar {
+  animation-duration: 3.7s;
+  animation-delay: -1.3s;
+}
+html[data-motion="full"]
+  [data-phase="lobby"]
+  .player-tile:nth-child(3n)
+  .avatar {
+  animation-duration: 4.8s;
+  animation-delay: -2.4s;
+}
+html[data-motion="full"] [data-phase="lobby"] .player-tile .eyes,
+html[data-motion="full"] .speaker-avatar .eyes {
+  transform-box: fill-box;
+  transform-origin: 50% 50%;
+  animation: alibi-blink 5.3s infinite;
+}
+html[data-motion="full"] [data-phase="lobby"] .player-tile:nth-child(2n) .eyes {
+  animation-duration: 6.1s;
+  animation-delay: -2s;
+}
+html[data-motion="full"] [data-phase="lobby"] .player-tile:nth-child(3n) .eyes {
+  animation-duration: 4.4s;
+  animation-delay: -3.1s;
+}
+/* An empty seat waits with a slow pulse. */
+html[data-motion="full"] [data-phase="lobby"] .player-tile.empty .empty-avatar {
+  animation: alibi-wait 2.6s ease-in-out infinite;
+}
+/* The interrogation lamp in the art hums. */
+html[data-motion="full"] .lobby-art::after,
+html[data-motion="full"] .art-frame::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(
+    ellipse 38% 46% at 50% 8%,
+    #ffb27033,
+    transparent 70%
+  );
+  mix-blend-mode: screen;
+  animation: alibi-hum 7s ease-in-out infinite;
+  will-change: opacity;
+}
+
+/* Whoever is speaking talks: a small bob under the lamp and in the order. */
+html[data-motion="full"] .speaker-avatar {
+  animation: alibi-sway 3.2s ease-in-out infinite;
+}
+html[data-motion="full"] .turn-row.current .avatar {
+  animation: alibi-talk 0.9s ease-in-out infinite;
+}
+/* Everyone who has readied up settles. */
+html[data-motion="full"] .speaker-stage.paused .speaker-avatar,
+html[data-motion="full"] .speaker-stage.paused ~ * .turn-row.current .avatar {
+  animation-play-state: paused;
+}
+
+@keyframes alibi-shift {
+  0%,
+  100% {
+    transform: translateY(0) rotate(0);
+  }
+  30% {
+    transform: translateY(-3px) rotate(-1.5deg);
+  }
+  65% {
+    transform: translateY(-1px) rotate(1.2deg);
+  }
+}
+@keyframes alibi-blink {
+  0%,
+  93%,
+  100% {
+    transform: scaleY(1);
+  }
+  96% {
+    transform: scaleY(0.12);
+  }
+}
+@keyframes alibi-wait {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+@keyframes alibi-hum {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  40% {
+    opacity: 1;
+  }
+  44% {
+    opacity: 0.7;
+  }
+  48% {
+    opacity: 0.95;
+  }
+}
+@keyframes alibi-sway {
+  0%,
+  100% {
+    transform: rotate(-5deg) translateY(0);
+  }
+  50% {
+    transform: rotate(-2deg) translateY(-4px);
+  }
+}
+@keyframes alibi-talk {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-2px) rotate(-3deg);
+  }
+}
+
+/* Vote tallies on the results lineup: one stroke per vote. */
+.tally {
+  display: flex;
+  justify-content: center;
+  gap: 3px;
+  padding-top: 6px;
+}
+.tally i {
+  display: block;
+  width: 3px;
+  height: 14px;
+  border-radius: 1px;
+  background: var(--orange);
+  transform: rotate(8deg);
+}
+.tally i:nth-child(5n) {
+  transform: rotate(-58deg) translate(8px, -4px);
+  margin-left: -13px;
+}

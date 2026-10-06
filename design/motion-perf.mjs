@@ -12,6 +12,9 @@ import { chromium, expect } from "@playwright/test";
 import { createAlibiServer } from "../server/index.js";
 
 const reduced = process.argv.includes("--reduced");
+// --override: the device asks for reduced motion but the player turned
+// motion on with the header toggle (stored in localStorage).
+const override = process.argv.includes("--override");
 // --no-vt removes the View Transitions API to isolate GSAP's own cost.
 const noVt = process.argv.includes("--no-vt");
 const cpuIndex = process.argv.indexOf("--cpu");
@@ -33,10 +36,14 @@ async function open(nick, phone) {
       : { width: 1280, height: 800 },
     // Only the measured phone animates; the other players' tabs run with
     // reduced motion so they do not compete for this machine's CPU.
-    reducedMotion: phone && !reduced ? "no-preference" : "reduce",
+    reducedMotion: phone && !reduced && !override ? "no-preference" : "reduce",
     isMobile: Boolean(phone),
     hasTouch: Boolean(phone),
   });
+  if (phone && override)
+    await context.addInitScript(() =>
+      localStorage.setItem("alibi.motion", "full"),
+    );
   if (phone && noVt)
     await context.addInitScript(() => {
       window.__noVt = true;
@@ -227,7 +234,7 @@ await moment(
 
 const vtCount = await phone.page.evaluate(() => window.__vt);
 console.log(
-  `${reduced ? "REDUCED MOTION" : noVt ? "GSAP ONLY" : "MOTION"} · phone 390x844 · CPU ${cpu}x · view transitions started: ${vtCount}`,
+  `${reduced ? "REDUCED MOTION" : override ? "DEVICE REDUCED, PLAYER TURNED MOTION ON" : noVt ? "GSAP ONLY" : "MOTION"} · phone 390x844 · CPU ${cpu}x · view transitions started: ${vtCount}`,
 );
 console.table(
   rows.map((r) => ({

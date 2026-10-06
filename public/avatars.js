@@ -30,5 +30,5 @@ export function avatar(index = 0, size = "") {
     '<path d="M19 28q4-6 8 0"/><circle cx="41" cy="28" r="2"/>',
     '<circle cx="22" cy="28" r="6"/><circle cx="42" cy="28" r="6"/><circle cx="22" cy="28" r="2"/><circle cx="42" cy="28" r="2"/>',
   ];
-  return `<svg class="avatar ${size}" viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" rx="22" fill="${colors[i]}"/><g stroke="#282a2e" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" fill="none">${eyes[i]}<path d="M26 42q6 ${i === 2 ? "-4" : "7"} 12 0"/>${i === 2 ? '<path d="M14 18h36M21 17l3-7h17l4 7"/>' : i === 4 ? '<path d="m25 11 5 4 4-6 4 6"/>' : ""}</g></svg>`;
+  return `<svg class="avatar ${size}" viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" rx="22" fill="${colors[i]}"/><g stroke="#282a2e" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" fill="none"><g class="eyes">${eyes[i]}</g><path d="M26 42q6 ${i === 2 ? "-4" : "7"} 12 0"/>${i === 2 ? '<path d="M14 18h36M21 17l3-7h17l4 7"/>' : i === 4 ? '<path d="m25 11 5 4 4-6 4 6"/>' : ""}</g></svg>`;
 }
