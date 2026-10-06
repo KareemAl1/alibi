@@ -1,0 +1,246 @@
+/* Direction A: Lineup.
+   The vote is a police lineup. Suspects stand against a height chart with a
+   name placard; the room reads like precinct signage under sodium light.
+   Keeps ink, cream panels, orange, the illustration and the avatars. */
+@font-face {
+  font-family: "Big Shoulders Display";
+  src: url("../fonts/big-shoulders-display-latin-wght-normal.woff2")
+    format("woff2");
+  font-weight: 100 900;
+  font-display: swap;
+}
+@font-face {
+  font-family: Archivo;
+  src: url("../fonts/archivo-latin-standard-normal.woff2") format("woff2");
+  font-weight: 100 900;
+  font-stretch: 62% 125%;
+  font-display: swap;
+}
+:root {
+  --ink: #15161a;
+  --wall: #1e2024;
+  --cream: #eee3cb;
+  --orange: #ff6a2b;
+  --chalk: #d9d3c3;
+  --muted: #a3a29b;
+  --border: #33353a;
+  --display: "Big Shoulders Display", "Arial Narrow", sans-serif;
+  font-family: Archivo, "Segoe UI", sans-serif;
+}
+body {
+  background: var(--ink);
+}
+.ambient {
+  background: radial-gradient(
+    ellipse 60% 40% at 50% -10%,
+    #ff6a2b14,
+    transparent 70%
+  );
+}
+h1,
+.brand,
+.stage h1,
+.room-heading h1,
+.results-heading h1 {
+  font-family: var(--display);
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  line-height: 0.92;
+  text-transform: uppercase;
+}
+h1 {
+  font-size: clamp(3.2rem, 6.4vw, 6rem);
+}
+.stage h1 {
+  font-size: clamp(2.8rem, 5vw, 4.4rem);
+}
+h2,
+.role-content h2,
+.result-card h2 {
+  font-family: var(--display);
+  font-weight: 750;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+.result-card h2 {
+  font-size: clamp(3.4rem, 7vw, 5rem);
+  line-height: 0.95;
+}
+.role-content h2 {
+  font-size: 3rem;
+  line-height: 0.95;
+}
+em {
+  font-style: normal;
+  color: var(--orange);
+}
+.brand {
+  font-size: 3.4rem;
+  text-transform: lowercase;
+  letter-spacing: -0.02em;
+}
+.eyebrow,
+.brand-caption,
+.speaking-label {
+  letter-spacing: 0.06em;
+}
+/* Paper: squarer case-file sheets rather than app cards */
+.paper {
+  border-radius: 3px;
+  box-shadow:
+    0 1px 0 #fff6 inset,
+    0 18px 40px #0006;
+}
+.button,
+.tabs button,
+input {
+  border-radius: 4px;
+}
+.button.primary,
+.button[data-primary] {
+  font-family: var(--display);
+  font-weight: 800;
+  font-size: 1.25rem;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  background: var(--orange);
+}
+.stage {
+  border-radius: 4px;
+  background: var(--wall);
+}
+/* Illustration caption sits under the art instead of over the table */
+.art-caption {
+  position: static;
+  display: block;
+  padding-top: 12px;
+  color: var(--muted);
+  letter-spacing: 0.06em;
+  font-size: 0.75rem;
+}
+/* The height chart: horizontal rules with a heavier line every foot */
+.players-grid,
+.vote-grid {
+  position: relative;
+  background:
+    repeating-linear-gradient(
+      to bottom,
+      transparent 0 95px,
+      #ffffff1f 95px 96px
+    ),
+    repeating-linear-gradient(
+      to bottom,
+      transparent 0 23px,
+      #ffffff0b 23px 24px
+    );
+  border-bottom: 3px solid var(--chalk);
+  padding: 22px 0 0 34px;
+}
+.players-grid::before,
+.vote-grid::before {
+  content: "7  \A\A\A\A 6  \A\A\A\A 5  \A\A\A\A 4";
+  white-space: pre;
+  position: absolute;
+  left: 0;
+  top: 14px;
+  font: 700 0.95rem/24px var(--display);
+  color: #ffffff3a;
+}
+.player-tile,
+.vote-candidate {
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  text-align: center;
+  padding: 10px 6px 0;
+  min-height: 190px;
+}
+.player-tile .avatar,
+.vote-candidate .avatar {
+  width: 92px;
+  height: 92px;
+}
+.player-tile > div,
+.vote-candidate b {
+  width: 100%;
+}
+.player-tile b,
+.vote-candidate b {
+  display: block;
+  background: #0c0d0f;
+  color: #f2efe6;
+  font: 800 1.15rem/1 var(--display);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 9px 8px 8px;
+  border-top: 2px solid #ffffff22;
+}
+.player-tile .you {
+  color: var(--orange);
+}
+.player-status,
+.vote-candidate > span {
+  display: block;
+  padding: 6px 0 10px;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+.online-dot {
+  position: absolute;
+  margin: 4px;
+}
+.player-tile {
+  position: relative;
+}
+.players-grid {
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+.vote-grid {
+  grid-template-columns: repeat(auto-fit, minmax(118px, 1fr));
+  gap: 8px;
+}
+.vote-candidate.selected {
+  background: linear-gradient(to bottom, #ff6a2b26, transparent 70%);
+}
+.vote-candidate.selected b {
+  background: var(--orange);
+  color: #15161a;
+}
+.vote-candidate.selected > span {
+  color: var(--orange);
+  font-weight: 700;
+}
+.vote-candidate:not(:disabled):hover b {
+  border-top-color: var(--orange);
+}
+.turn-row.current {
+  border-radius: 2px;
+}
+.room-code {
+  font-family: var(--display);
+  font-weight: 800;
+  font-size: 2rem;
+  letter-spacing: 0.08em;
+}
+.tiny-stamp {
+  font-family: var(--display);
+  font-size: 0.85rem;
+  border-width: 2px;
+  color: #c4461b;
+  border-color: #c4461b;
+}
+@media (max-width: 700px) {
+  .players-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .vote-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  h1 {
+    font-size: clamp(2.9rem, 13vw, 4rem);
+  }
+}

@@ -1,0 +1,143 @@
+/* Direction C: Lamp.
+   A single interrogation lamp lights whatever matters now: the hero art, the
+   speaker, your suspect. Everything else drops into shadow; type goes noir.
+   Keeps ink, cream panels, orange, the illustration and the avatars. */
+@font-face {
+  font-family: "Bodoni Moda";
+  src: url("../fonts/bodoni-moda-latin-standard-normal.woff2") format("woff2");
+  font-weight: 400 900;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Instrument Sans";
+  src: url("../fonts/instrument-sans-latin-standard-normal.woff2")
+    format("woff2");
+  font-weight: 400 700;
+  font-stretch: 75% 100%;
+  font-display: swap;
+}
+:root {
+  --ink: #101114;
+  --cream: #f1e9d6;
+  --orange: #ff8b3d;
+  --muted: #8f8e88;
+  font-family: "Instrument Sans", "Segoe UI", sans-serif;
+}
+body {
+  background: var(--ink);
+}
+.ambient {
+  background:
+    radial-gradient(ellipse 34% 55% at 50% -8%, #ffb06a2e, transparent 70%),
+    radial-gradient(ellipse 80% 60% at 50% 120%, #00000080, transparent);
+}
+h1,
+.brand,
+h2,
+.role-content h2,
+.result-card h2 {
+  font-family: "Bodoni Moda", Didot, serif;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+}
+h1 {
+  font-size: clamp(3rem, 6vw, 5.6rem);
+  line-height: 0.98;
+}
+em {
+  font-style: italic;
+}
+.site-header,
+.site-footer {
+  border-color: #ffffff0a;
+}
+.stage {
+  border: 0;
+  background:
+    radial-gradient(ellipse 45% 60% at 50% 0%, #ffb06a24, transparent 75%),
+    #15171a;
+  border-radius: 2px;
+  position: relative;
+}
+.stage::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 64px;
+  height: 4px;
+  margin-left: -32px;
+  background: var(--orange);
+  box-shadow: 0 0 40px 12px #ff8b3d55;
+}
+.spotlight:before {
+  background: linear-gradient(#ffb06a00, #ffb06a26);
+}
+.paper {
+  border-radius: 2px;
+  box-shadow: 0 30px 60px #000a;
+}
+.player-tile,
+.vote-candidate {
+  background: #16181c;
+  border-color: #23252a;
+  border-radius: 2px;
+}
+.vote-grid {
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+}
+.vote-candidate .avatar {
+  filter: grayscale(0.85) brightness(0.7);
+  width: 72px;
+  height: 72px;
+  transition: filter 0.25s;
+}
+.vote-candidate.selected {
+  background: radial-gradient(
+    ellipse 80% 70% at 50% 0%,
+    #ffb06a40,
+    #16181c 75%
+  );
+  border-color: #ff8b3d88;
+}
+.vote-candidate.selected .avatar,
+.vote-candidate:not(:disabled):hover .avatar {
+  filter: none;
+}
+.vote-candidate b {
+  font-family: "Bodoni Moda", serif;
+  font-size: 1.15rem;
+  font-weight: 600;
+}
+.button,
+.tabs button,
+input {
+  border-radius: 2px;
+}
+.art-frame {
+  background: radial-gradient(
+    ellipse 50% 60% at 50% 30%,
+    #ff8b3d18,
+    transparent 70%
+  );
+}
+.art-caption {
+  position: static;
+  display: block;
+  padding-top: 12px;
+  font-family: "Bodoni Moda", serif;
+  font-style: italic;
+  letter-spacing: 0;
+  font-size: 1rem;
+  text-transform: none;
+}
+.room-code {
+  font-family: "Bodoni Moda", serif;
+  font-size: 1.8rem;
+  letter-spacing: 0.06em;
+}
+@media (prefers-reduced-motion: reduce) {
+  .vote-candidate .avatar {
+    transition: none;
+  }
+}
