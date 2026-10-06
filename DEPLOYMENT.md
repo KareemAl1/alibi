@@ -1,13 +1,13 @@
 # Put Alibi online
 
-Prepared and official pricing rechecked September 30, 2026. Nothing has been deployed, published, or charged. The paid plan in `render.yaml` is a proposal, not an approved purchase; importing it and choosing Deploy would create a billable service.
+Deployment configuration and official pricing were last checked September 30, 2026. Handoff status updated October 6: source repository [KareemAl1/alibi](https://github.com/KareemAl1/alibi) is private; no game deployment or hosting purchase has occurred. Recheck the cost figures below before a paid-plan decision. The paid plan in `render.yaml` is a proposal, not an approved purchase; importing it and choosing Deploy would create a billable service.
 
 The simplest fit for this version is **one paid Render Node web service**. It runs the existing Express server, browser files, and Socket.IO endpoint together at one HTTPS address. Friends open that address, create a room, and share its invite link. No separate frontend host, database, Docker image, or mobile app is required for this playtest. Render supports public WebSockets without a fixed connection duration; disconnects can still occur during deploys, maintenance, or network changes. [Render WebSockets](https://render.com/docs/websocket)
 
 ## Accounts and cost before deployment
 
 - A Render account with a payment method and permission to create a paid web service.
-- A GitHub, GitLab, or Bitbucket repository containing this exact project, and permission for Render to read that repository. A private repository is fine. The local repository currently has no Git remote; creating or pushing a remote repository has not been done.
+- Permission for Render to read the private [KareemAl1/alibi](https://github.com/KareemAl1/alibi) repository, selecting the `codex/alibi` branch. The source repository is prepared; Render has not been connected or deployed by this project work.
 - Agreement to the paid service: the **0.5c-512mb** plan is **US$7/month** for 0.5 CPU and 512 MB RAM, on a **US$0/month Hobby workspace**. This plan used to be called Starter. The supplied configuration creates exactly one service and no paid database or disk. A paid Pro workspace is not required. Compute billing is prorated to the second. [Pricing](https://render.com/pricing), [current plan names](https://render.com/docs/compute-plans)
 - The $7 is the base compute price, not a hard bill cap. Hobby currently includes 5 GB of monthly outbound bandwidth, then $0.15/GB, and 500 standard build minutes, then $5 per 1,000 minutes. Review the estimate and billing settings in the account before creating the service. No custom domain purchase is necessary; use Render's supplied HTTPS address. [Pricing](https://render.com/pricing)
 
@@ -25,7 +25,7 @@ Code auto-deploys are off. This avoids ordinary code pushes interrupting games. 
 
 ## Deployment steps once account access and cost are approved
 
-1. Commit the tested project and publish it to the chosen Git repository. Include `package-lock.json`, `render.yaml`, `.node-version`, `server/`, `shared/`, and `public/`. Select the branch containing this milestone when linking Render; do not assume it is the repository's default branch.
+1. Confirm the tested handoff is on the private repository's `codex/alibi` branch. Include `package-lock.json`, `render.yaml`, `.node-version`, `server/`, `shared/`, and `public/`. Select this tested branch when linking Render.
 2. Sign in to Render, connect that repository, and choose **New > Blueprint**. Select its branch and the root `render.yaml` file. Review the proposed single web service and its price before choosing **Deploy Blueprint**. [Blueprint setup](https://render.com/docs/infrastructure-as-code)
 3. Set the Blueprint's **Auto Sync to No**. Confirm the service also shows code auto-deploys off and exactly one instance. Keep autoscaling disabled.
 4. Wait for the health check to pass. Open the generated `https://…onrender.com` address and verify `/api/health` returns `{"ok":true}`. The log currently prints an internal `localhost` listening address; share the public HTTPS URL shown by Render instead.

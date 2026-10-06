@@ -2,6 +2,8 @@
 
 A private multiplayer secret-word party game for 4–10 friends. Talk on Discord; Alibi handles private cards, speaking order, votes, and the reveal. No accounts or voice access are needed.
 
+Continuing development: start with [HANDOFF.md](HANDOFF.md) and [PROGRESS.md](PROGRESS.md). The private source repository is [KareemAl1/alibi](https://github.com/KareemAl1/alibi), branch `codex/alibi`. The game has not been publicly deployed.
+
 ## Run locally
 
 Install Node.js 22 or newer, then run these commands in this folder:
@@ -76,7 +78,7 @@ The browser smoke check requires Google Chrome installed on the machine and uses
 
 ## Hosting requirements and current limits
 
-The exact architecture has a prepared [Render configuration](render.yaml) and [deployment guide](DEPLOYMENT.md), including current account/cost requirements and pre-publication checks. Nothing has been published. The proposed single service currently starts at $7/month base plus possible usage, and needs Render billing and Git repository access before deployment.
+The exact architecture has a prepared [Render configuration](render.yaml) and [deployment guide](DEPLOYMENT.md). Source is in a private GitHub repository; the game itself has not been deployed. The proposed single service was quoted at $7/month base plus usage on September 30, 2026; recheck pricing before choosing a paid plan. Deployment still needs Render billing, repository access and the user's hosting decision.
 
 For friends on different networks, this version needs a long-running Node.js host, a public HTTPS address, and a reverse proxy or platform that supports WebSockets. Serve the browser and API from the same origin. Configure these environment variables before starting:
 
