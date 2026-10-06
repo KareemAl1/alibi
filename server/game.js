@@ -1,3 +1,4 @@
+import { normalizeAvatar } from "../shared/avatar.js";
 import { randomInt as secureRandomInt } from "node:crypto";
 import { CATEGORIES, WORDS } from "./words.js";
 import {
@@ -51,11 +52,9 @@ function profile({ nickname, avatar } = {}) {
     nickname.length >= 1 && nickname.length <= 20,
     "Use a nickname between 1 and 20 characters.",
   );
-  requireThat(
-    Number.isInteger(avatar) && avatar >= 0 && avatar <= 7,
-    "Choose one of the eight avatars.",
-  );
-  return { nickname, avatar };
+  const look = normalizeAvatar(avatar);
+  requireThat(look, "Choose a valid look from the avatars.");
+  return { nickname, avatar: look };
 }
 
 export function normalizeGuess(value) {
@@ -632,7 +631,7 @@ export class GameStore {
       players: [...room.players.values()].map((player) => ({
         id: player.id,
         nickname: player.nickname,
-        avatar: player.avatar,
+        avatar: { ...player.avatar },
         connected: player.connected,
         waiting: Boolean(round && !this.eligible(room, player.id)),
         ready: Boolean(

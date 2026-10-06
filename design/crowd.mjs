@@ -81,7 +81,9 @@ for (const [n, nick] of names.slice(1).entries()) {
   await btn(p, "Join a room").click();
   await p.page.getByLabel("Room code").fill(code);
   await p.page.getByLabel("What should we call you?").fill(nick);
-  await p.page.locator(`[data-avatar="${(n + 1) % 8}"]`).click();
+  await p.page
+    .locator(`[data-part="face"][data-value="${(n + 1) % 8}"]`)
+    .click();
   await btn(p, "Join the room").click();
   await until(p, (s) => s.code === code);
 }

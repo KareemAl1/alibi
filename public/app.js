@@ -1,4 +1,5 @@
-import { AVATARS, avatar } from "./avatars.js";
+import { avatar, describeAvatar, lookOf } from "./avatars.js";
+import { AVATAR_PARTS, normalizeAvatar, randomAvatar } from "/shared/avatar.js";
 import {
   afterRender,
   deviceReducesMotion,
@@ -52,13 +53,18 @@ let syncPending = false;
 let connectionIssue = "";
 let lastRenderKey = "";
 let nickname = "",
-  avatarId = 0,
+  look = randomAvatar(),
   mode = new URLSearchParams(location.search).has("room") ? "join" : "create";
 let roomCode = new URLSearchParams(location.search).get("room") || "",
   guess = "";
 try {
   nickname = localStorage.getItem("alibi.nickname") || "";
-  avatarId = Number(localStorage.getItem("alibi.avatar") || 0) % 8;
+  const saved = localStorage.getItem("alibi.avatar");
+  if (saved !== null) {
+    // Older versions stored a number 0 to 7; newer ones store the builder JSON.
+    const parsed = /^\d+$/.test(saved) ? Number(saved) : JSON.parse(saved);
+    look = normalizeAvatar(parsed) || look;
+  }
 } catch {
   /* Preferences are optional. */
 }
@@ -94,7 +100,35 @@ function notify(message) {
 }
 
 function setup() {
-  return `<section class="entry-grid"><div class="entry-story"><div class="eyebrow"><span class="orange-line"></span> A PARTY GAME OF PLAUSIBLE DENIABILITY</div><h1>Good friends.<br>Bad <em>alibis.</em></h1><p class="intro">Everyone knows the secret word.<br>Well, <span>almost</span> everyone.</p><div class="art-frame"><picture><source srcset="/art/interrogation.webp" type="image/webp"><img class="hero-art" src="/art/interrogation.png" alt="Four suspicious characters around an interrogation table under an orange spotlight"></picture><span class="art-caption">SOMEONE AT THIS TABLE IS WINGING IT.</span></div></div><div class="entry-right"><section class="paper entry-card"><div class="paper-top"><span class="eyebrow">THE NIGHT STARTS HERE</span><span class="tiny-stamp">TOP SECRET</span></div><h2>Take a seat.</h2><p class="muted">Gather your friends. Bring your poker face.</p><div class="tabs" role="group" aria-label="Choose how to play"><button type="button" data-mode="create" class="${mode === "create" ? "selected" : ""}" aria-pressed="${mode === "create"}">Create a room</button><button type="button" data-mode="join" class="${mode === "join" ? "selected" : ""}" aria-pressed="${mode === "join"}">Join a room</button></div><form id="entry-form"><label for="nickname">What should we call you?</label><input id="nickname" name="nickname" placeholder="Your nickname" maxlength="20" minlength="1" autocomplete="nickname" value="${esc(nickname)}" required><fieldset class="avatar-picker"><legend>Pick your usual suspect</legend><div>${AVATARS.map((label, i) => `<button type="button" class="avatar-option ${avatarId === i ? "selected" : ""}" data-avatar="${i}" aria-label="${label}" aria-pressed="${avatarId === i}">${avatar(i)}</button>`).join("")}</div></fieldset>${mode === "join" ? `<label for="room-code">Room code</label><input id="room-code" class="code-input" name="code" placeholder="ABCDEF" maxlength="6" autocomplete="off" autocapitalize="characters" spellcheck="false" value="${esc(roomCode)}" required>` : ""}<button class="button primary wide" type="submit" ${disabled(false)}>${busy ? "Pulling up your chair…" : mode === "join" ? "Join the room" : "Create a private room"}</button><p class="form-note">No accounts. Just a room link and your friends.</p></form></section><div class="voice-note"><span class="headphones" aria-hidden="true">◖◗</span><div><b>Bring your own conversation.</b><p>Hop on Discord or your favorite voice call.<br>We’ll handle the secrets.</p></div></div></div></section><div class="entry-bottom"><div><span class="step-number">01</span><b>Get your secret</b></div><div><span class="step-number">02</span><b>Sound convincing</b></div><div><span class="step-number">03</span><b>Call their bluff</b></div></div>${rules()}`;
+  return `<section class="entry-grid"><div class="entry-story"><div class="eyebrow"><span class="orange-line"></span> A PARTY GAME OF PLAUSIBLE DENIABILITY</div><h1>Good friends.<br>Bad <em>alibis.</em></h1><p class="intro">Everyone knows the secret word.<br>Well, <span>almost</span> everyone.</p><div class="art-frame"><picture><source srcset="/art/interrogation.webp" type="image/webp"><img class="hero-art" src="/art/interrogation.png" alt="Four suspicious characters around an interrogation table under an orange spotlight"></picture><span class="art-caption">SOMEONE AT THIS TABLE IS WINGING IT.</span></div></div><div class="entry-right"><section class="paper entry-card"><div class="paper-top"><span class="eyebrow">THE NIGHT STARTS HERE</span><span class="tiny-stamp">TOP SECRET</span></div><h2>Take a seat.</h2><p class="muted">Gather your friends. Bring your poker face.</p><div class="tabs" role="group" aria-label="Choose how to play"><button type="button" data-mode="create" class="${mode === "create" ? "selected" : ""}" aria-pressed="${mode === "create"}">Create a room</button><button type="button" data-mode="join" class="${mode === "join" ? "selected" : ""}" aria-pressed="${mode === "join"}">Join a room</button></div><form id="entry-form"><label for="nickname">What should we call you?</label><input id="nickname" name="nickname" placeholder="Your nickname" maxlength="20" minlength="1" autocomplete="nickname" value="${esc(nickname)}" required>${builder()}${mode === "join" ? `<label for="room-code">Room code</label><input id="room-code" class="code-input" name="code" placeholder="ABCDEF" maxlength="6" autocomplete="off" autocapitalize="characters" spellcheck="false" value="${esc(roomCode)}" required>` : ""}<button class="button primary wide" type="submit" ${disabled(false)}>${busy ? "Pulling up your chair…" : mode === "join" ? "Join the room" : "Create a private room"}</button><p class="form-note">No accounts. Just a room link and your friends.</p></form></section><div class="voice-note"><span class="headphones" aria-hidden="true">◖◗</span><div><b>Bring your own conversation.</b><p>Hop on Discord or your favorite voice call.<br>We’ll handle the secrets.</p></div></div></div></section><div class="entry-bottom"><div><span class="step-number">01</span><b>Get your secret</b></div><div><span class="step-number">02</span><b>Sound convincing</b></div><div><span class="step-number">03</span><b>Call their bluff</b></div></div>${rules()}`;
+}
+
+// The avatar builder: a live preview, Randomize, and one row per part. Option
+// previews show your current suspect with just that part changed. Swatches
+// are SVG because the page's CSP does not allow inline style attributes.
+const PART_LABELS = {
+  color: "Color",
+  face: "Face",
+  hat: "Hat",
+  glasses: "Glasses",
+  mustache: "Mustache",
+};
+function builder() {
+  const swatch = (hex) =>
+    `<svg class="swatch" viewBox="0 0 24 24" aria-hidden="true"><rect width="24" height="24" rx="8" fill="${hex}"/></svg>`;
+  return `<fieldset class="avatar-builder"><legend>Build your suspect</legend><div class="builder-top"><div class="builder-preview" role="img" aria-label="Your suspect: ${esc(describeAvatar(look))}">${avatar(look, "preview")}</div><button type="button" class="button small quiet" data-randomize><span class="die" aria-hidden="true">⚄</span> Randomize</button></div>${Object.entries(
+    AVATAR_PARTS,
+  )
+    .map(
+      ([part, options]) =>
+        `<div class="builder-row" role="group" aria-label="${PART_LABELS[part]}"><span class="builder-label" aria-hidden="true">${PART_LABELS[part]}</span><div class="builder-options">${options
+          .map(
+            (option, i) =>
+              `<button type="button" class="builder-option ${look[part] === i ? "selected" : ""}" data-part="${part}" data-value="${i}" aria-pressed="${look[part] === i}" aria-label="${esc(option.label)}">${part === "color" ? swatch(option.value) : avatar({ ...look, [part]: i }, "mini")}</button>`,
+          )
+          .join("")}</div></div>`,
+    )
+    .join("")}</fieldset>`;
 }
 
 function roomHeader() {
@@ -421,9 +455,14 @@ app.addEventListener("click", async (event) => {
   if (el.dataset.mode) {
     mode = el.dataset.mode;
     render();
-  } else if (el.dataset.avatar !== undefined) {
-    avatarId = Number(el.dataset.avatar);
+  } else if (el.dataset.part) {
+    look = lookOf({ ...look, [el.dataset.part]: Number(el.dataset.value) });
     render();
+    play("pick", lastRenderKey);
+  } else if (el.hasAttribute("data-randomize")) {
+    look = randomAvatar();
+    render();
+    play("randomize", lastRenderKey);
   } else if (el.hasAttribute("data-reveal")) {
     revealed = !revealed;
     render();
@@ -469,11 +508,11 @@ app.addEventListener("submit", async (event) => {
   if (event.target.id === "entry-form") {
     try {
       localStorage.setItem("alibi.nickname", nickname);
-      localStorage.setItem("alibi.avatar", String(avatarId));
+      localStorage.setItem("alibi.avatar", JSON.stringify(look));
     } catch {}
     await send(mode === "create" ? "room:create" : "room:join", {
       nickname: nickname.trim(),
-      avatar: avatarId,
+      avatar: look,
       code: normalizeRoomCode(roomCode),
     });
   }

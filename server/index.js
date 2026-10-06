@@ -149,7 +149,13 @@ export async function createAlibiServer({
       ),
     ),
   );
-  // Deliberately expose this one public contract, never the server source/word pool.
+  // Deliberately expose the shared public contracts (protocol and avatar
+  // options), never the server source or word pool.
+  app.get("/shared/avatar.js", (_req, res) =>
+    res.sendFile(
+      fileURLToPath(new URL("../shared/avatar.js", import.meta.url)),
+    ),
+  );
   app.get("/shared/protocol.js", (_req, res) =>
     res.sendFile(
       fileURLToPath(new URL("../shared/protocol.js", import.meta.url)),

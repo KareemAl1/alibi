@@ -793,3 +793,37 @@ test("TRUST_PROXY_HOPS must be a small whole number", async () => {
       /TRUST_PROXY_HOPS/,
     );
 });
+
+test("custom avatars reach every player over the socket", async (t) => {
+  const game = await fixture(t, 1);
+  const look = { color: 8, face: 6, hat: 3, glasses: 1, mustache: 2 };
+  const host = await game.newClient("Host");
+  const guest = await game.newClient("Guest");
+  assert.equal(
+    (await game.raw(host, "room:create", { nickname: "Host", avatar: look }))
+      .ok,
+    true,
+  );
+  const code = host.state.code;
+  const rejected = await game.raw(guest, "room:join", {
+    nickname: "Guest",
+    code,
+    avatar: { ...look, hat: 99 },
+  });
+  assert.equal(rejected.ok, false);
+  assert.match(rejected.error, /avatars/);
+  assert.equal(
+    (
+      await game.raw(guest, "room:join", {
+        nickname: "Guest",
+        code,
+        avatar: { ...look, color: 2 },
+      })
+    ).ok,
+    true,
+  );
+  await until(() => host.state?.players.length === 2, "host to see the guest");
+  const byName = (state, n) => state.players.find((p) => p.nickname === n);
+  assert.deepEqual(byName(guest.state, "Host").avatar, look);
+  assert.deepEqual(byName(host.state, "Guest").avatar, { ...look, color: 2 });
+});

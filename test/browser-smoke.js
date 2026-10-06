@@ -150,12 +150,35 @@ async function join(c, code) {
   await click(c, "Join a room");
   await c.page.getByLabel("What should we call you?").fill(c.nickname);
   await c.page.getByLabel("Room code").fill(code);
-  await c.page.locator(`[data-avatar="${clients.indexOf(c) % 8}"]`).click();
-  await expect(
-    c.page.locator(`[data-avatar="${clients.indexOf(c) % 8}"]`),
-  ).toBeFocused();
+  // Build a distinct suspect with the avatar builder.
+  const n = clients.indexOf(c);
+  const look = {
+    color: (n * 3) % 10,
+    face: n % 8,
+    hat: n % 6,
+    glasses: n % 4,
+    mustache: (n + 1) % 4,
+  };
+  for (const [part, value] of Object.entries(look)) {
+    const option = c.page.locator(
+      `[data-part="${part}"][data-value="${value}"]`,
+    );
+    await option.click();
+    await expect(option).toBeFocused();
+    await expect(option).toHaveAttribute("aria-pressed", "true");
+  }
+  c.look = look;
   await click(c, "Join the room");
   await wait(c, (state) => state?.code === code);
+}
+
+// Everyone sees everyone's custom suspect.
+async function checkLooks() {
+  for (const viewer of clients)
+    for (const other of clients.filter((o) => o.look))
+      expect(
+        viewer.state.players.find((p) => p.id === other.state.me.id)?.avatar,
+      ).toEqual(other.look);
 }
 
 async function startRound() {
@@ -388,8 +411,17 @@ try {
   const a = await client("Sam");
   await capturePair(a, "entry", "Create a private room");
   await a.page.getByLabel("What should we call you?").fill("Sam");
+  await click(a, "Randomize");
+  await expect(a.page.getByRole("button", { name: "Randomize" })).toBeFocused();
   await click(a, "Create a private room");
   await phase(a, "lobby");
+  // The randomized look is what the server stored and what this device keeps.
+  a.look = a.state.players.find((p) => p.id === a.state.me.id).avatar;
+  expect(
+    JSON.parse(
+      await a.page.evaluate(() => localStorage.getItem("alibi.avatar")),
+    ),
+  ).toEqual(a.look);
   const code = a.state.code;
   for (const [nickname, width] of [
     ["Alex", 1280],
@@ -400,6 +432,10 @@ try {
   await Promise.all(clients.map((c) => wait(c, (s) => s.players.length === 4)));
   await synchronized("lobby");
   expect(new Set(clients.map((c) => c.state.me.id)).size).toBe(4);
+  await checkLooks();
+  record(
+    "Avatar builder: each player built a look option by option (or randomized it); the server stored it, the device remembered it, and all four players see every custom suspect.",
+  );
   const cookies = await Promise.all(clients.map((c) => c.context.cookies()));
   expect(
     new Set(

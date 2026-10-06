@@ -170,7 +170,7 @@ for (const [i, nick] of ["Maya", "Dre", "Lina"].entries()) {
   await btn(p.page, "Join a room").click();
   await p.page.getByLabel("Room code").fill(phone.state.code);
   await p.page.getByLabel("What should we call you?").fill(nick);
-  await p.page.locator(`[data-avatar="${i + 1}"]`).click();
+  await p.page.locator(`[data-part="face"][data-value="${i + 1}"]`).click();
   await btn(p.page, "Join the room").click();
   await until(p, (s) => s.code === phone.state.code);
 }

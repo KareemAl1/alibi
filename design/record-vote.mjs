@@ -10,7 +10,7 @@
 //
 //   BROWSER_PATH=... node design/record-vote.mjs --out DIR [--only phone|desktop] [--reduced]
 import { chromium, expect } from "@playwright/test";
-import { mkdir, rm } from "node:fs/promises";
+import { mkdir, rm, writeFile } from "node:fs/promises";
 import { execFileSync } from "node:child_process";
 import path from "node:path";
 import { createAlibiServer } from "../server/index.js";
@@ -74,7 +74,7 @@ for (const [i, nick] of names.slice(1).entries()) {
   await btn(p.page, "Join a room").click();
   await p.page.getByLabel("Room code").fill(host.state.code);
   await p.page.getByLabel("What should we call you?").fill(nick);
-  await p.page.locator(`[data-avatar="${i + 1}"]`).click();
+  await p.page.locator(`[data-part="face"][data-value="${i + 1}"]`).click();
   await btn(p.page, "Join the room").click();
   await until(p, (s) => s.code === host.state.code);
 }
@@ -142,6 +142,8 @@ await mkdir(frames, { recursive: true });
 await page.evaluate(() => {
   window.__virtualNow = Date.now();
   window.__frameMode = true;
+  window.__soundLog = [];
+  window.__clipStart = window.__virtualNow;
   window.gsap?.ticker.lagSmoothing(0);
   window.__clock = { t: 0, seen: new Map() };
 });
@@ -182,6 +184,59 @@ await until(cam, (s) => s.phase === "results");
 await settle();
 await film(3);
 
+// Sound: the cues this tab fired, on the clip's clock, rendered offline with
+// the game's own synth (public/sound.js), plus the voting heartbeat until the
+// ballot closed. Written as a WAV and muxed into the clip.
+const seconds = frame / FPS;
+const wav = await page.evaluate(async (seconds) => {
+  const { renderOffline } = await import("/sound.js");
+  const start = window.__clipStart;
+  const cues = window.__soundLog.map((c) => ({
+    name: c.name,
+    at: Math.max(0, (c.at - start) / 1000),
+  }));
+  const accuse = cues.find((c) => c.name === "accuse");
+  const buffer = await renderOffline(cues, seconds, {
+    loops: [
+      { name: "heart", from: 0.2, to: accuse ? accuse.at : seconds, bpm: 84 },
+    ],
+  });
+  const channels = [buffer.getChannelData(0), buffer.getChannelData(1)];
+  const length = buffer.length;
+  const view = new DataView(new ArrayBuffer(44 + length * 4));
+  const text = (o, s) =>
+    [...s].forEach((ch, i) => view.setUint8(o + i, ch.charCodeAt(0)));
+  text(0, "RIFF");
+  view.setUint32(4, 36 + length * 4, true);
+  text(8, "WAVEfmt ");
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true);
+  view.setUint16(22, 2, true);
+  view.setUint32(24, buffer.sampleRate, true);
+  view.setUint32(28, buffer.sampleRate * 4, true);
+  view.setUint16(32, 4, true);
+  view.setUint16(34, 16, true);
+  text(36, "data");
+  view.setUint32(40, length * 4, true);
+  for (let i = 0, o = 44; i < length; i++)
+    for (const ch of channels) {
+      const v = Math.max(-1, Math.min(1, ch[i]));
+      view.setInt16(o, v * 0x7fff, true);
+      o += 2;
+    }
+  let binary = "";
+  const bytes = new Uint8Array(view.buffer);
+  for (let i = 0; i < bytes.length; i += 0x8000)
+    binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  return {
+    base64: btoa(binary),
+    cues: cues.map((c) => `${c.at.toFixed(2)}s ${c.name}`),
+  };
+}, seconds);
+const audioPath = path.join(out, `vote-reveal-${only}.wav`);
+await writeFile(audioPath, Buffer.from(wav.base64, "base64"));
+console.log(`sound cues: ${wav.cues.join(", ")}`);
+
 const clip = path.join(
   out,
   `vote-reveal-${only}${reduced ? "-reduced" : ""}.mp4`,
@@ -194,6 +249,13 @@ execFileSync("ffmpeg", [
   String(FPS),
   "-i",
   path.join(frames, "f-%04d.png"),
+  "-i",
+  audioPath,
+  "-c:a",
+  "aac",
+  "-b:a",
+  "160k",
+  "-shortest",
   "-c:v",
   "libx264",
   "-pix_fmt",

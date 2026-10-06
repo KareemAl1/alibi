@@ -93,7 +93,14 @@ export function play(name, key) {
         ? gentle.card
         : name === "results"
           ? gentle.results
-          : ["select", "vote-tick", "turn-other", "turn-me"].includes(name)
+          : [
+                "select",
+                "vote-tick",
+                "turn-other",
+                "turn-me",
+                "pick",
+                "randomize",
+              ].includes(name)
             ? null
             : gentle.phase;
     if (targets)
@@ -311,6 +318,32 @@ const moments = {
       0.06,
     );
     return tl;
+  },
+
+  // Building your suspect: the preview reacts to each pick.
+  pick(g) {
+    return g
+      .timeline(clean)
+      .fromTo(
+        ".builder-preview .avatar",
+        { scaleX: 1.12, scaleY: 0.88 },
+        { scaleX: 1, scaleY: 1, duration: 0.3, ease: "elastic.out(1, 0.45)" },
+      );
+  },
+  // Randomize: the suspect spins around to show their new look.
+  randomize(g) {
+    return g
+      .timeline(clean)
+      .fromTo(
+        ".builder-preview .avatar",
+        { rotationY: -180, transformPerspective: 500, scale: 0.85 },
+        { rotationY: 0, scale: 1, duration: 0.45, ease: "back.out(1.6)" },
+      )
+      .from(
+        ".builder-option.selected",
+        { scale: 0.8, duration: 0.25, stagger: 0.03, ease: "back.out(2)" },
+        0.05,
+      );
   },
 
   // Voting opens: the suspects step into the lineup one by one.

@@ -82,7 +82,9 @@ const live = () => unlocked && ctx && soundEnabled() && !document.hidden;
 export function sfx(name, delay = 0) {
   if (!live() || !voices[name]) return;
   voices[name](ctx, master, ctx.currentTime + 0.01 + delay);
-  if (window.__soundLog) window.__soundLog.push({ name, delay });
+  // Review clips (design/record-vote.mjs) collect cues to render offline.
+  if (window.__soundLog)
+    window.__soundLog.push({ name, at: Date.now() + delay * 1000 });
 }
 
 /** Tell the sound which scene is on screen (drives the loops). */

@@ -670,3 +670,41 @@ test("new rounds refresh roles and avoid repeated words until the selected pool 
     /earlier round/,
   );
 });
+
+test("the avatar builder's choices are validated and shared exactly", () => {
+  const store = new GameStore();
+  const look = { color: 9, face: 2, hat: 4, glasses: 3, mustache: 1 };
+  const room = store.create("host", { nickname: "Ada", avatar: look });
+  store.join("guest", { nickname: "Bo", code: room.code, avatar: 5 });
+  const seen = store.view("guest").players;
+  assert.deepEqual(seen.find((p) => p.nickname === "Ada").avatar, look);
+  // Legacy indexes still map to the original eight suspects.
+  assert.deepEqual(seen.find((p) => p.nickname === "Bo").avatar, {
+    color: 5,
+    face: 5,
+    hat: 0,
+    glasses: 0,
+    mustache: 0,
+  });
+  // Snapshots are copies: changing one cannot change the room.
+  seen[0].avatar.color = 0;
+  assert.equal(store.view("host").players[0].avatar.color, 9);
+  const bad = [
+    { ...look, color: 10 },
+    { ...look, hat: -1 },
+    { ...look, face: 1.5 },
+    { ...look, glasses: "1" },
+    { ...look, extra: 0 },
+    { color: 1, face: 1, hat: 1, glasses: 1 },
+    [1, 2, 3, 4, 5],
+    8,
+    null,
+    "<svg onload=alert(1)>",
+  ];
+  for (const avatar of bad)
+    assert.throws(
+      () => new GameStore().create("x", { nickname: "X", avatar }),
+      /avatars/,
+      JSON.stringify(avatar),
+    );
+});

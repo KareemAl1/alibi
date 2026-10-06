@@ -74,14 +74,17 @@
   }
   #sound-toggle::before {
     content: "\266A";
+    content: "\266A" / "";
   }
   #sound-toggle[aria-pressed="false"]::before {
     content: "\266A";
+    content: "\266A" / "";
     text-decoration: line-through;
     opacity: 0.6;
   }
   #motion-toggle::before {
     content: "\223F";
+    content: "\223F" / "";
   }
   #motion-toggle[aria-pressed="false"]::before {
     opacity: 0.6;
@@ -118,6 +121,7 @@ html[data-motion="reduced"] *::after {
 html[data-motion="full"] .button,
 html[data-motion="full"] .tabs button,
 html[data-motion="full"] .avatar-option,
+html[data-motion="full"] .builder-option,
 html[data-motion="full"] .category,
 html[data-motion="full"] .header-toggle,
 html[data-motion="full"] .room-code,
@@ -141,7 +145,8 @@ html[data-motion="full"] .vote-candidate b {
   html[data-motion="full"] .button[data-primary]:hover:not(:disabled) {
     box-shadow: 0 8px 22px #ff6a2b38;
   }
-  html[data-motion="full"] .avatar-option:hover:not(.selected) {
+  html[data-motion="full"] .avatar-option:hover:not(.selected),
+  html[data-motion="full"] .builder-option:hover:not(.selected) {
     transform: translateY(-3px) rotate(-4deg);
   }
   html[data-motion="full"] .category:hover:not(:has(input:disabled)) {
@@ -159,7 +164,8 @@ html[data-motion="full"] .text-button:active {
   transform: translateY(1px) scale(0.97);
   transition-duration: 0.06s;
 }
-html[data-motion="full"] .avatar-option:active {
+html[data-motion="full"] .avatar-option:active,
+html[data-motion="full"] .builder-option:active {
   transform: scale(0.9);
   transition-duration: 0.06s;
 }

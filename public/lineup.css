@@ -523,3 +523,89 @@ html[data-motion="full"] .action-dock {
     transform: translateY(10px);
   }
 }
+
+/* Avatar builder (entry card). Same suspect style as the lineup. */
+.paper [data-randomize] {
+  color: var(--ink);
+  background: transparent;
+  border-color: #8f8672;
+}
+.paper [data-randomize] .die {
+  font-size: 1.1rem;
+  line-height: 1;
+}
+@media (hover: hover) {
+  .paper [data-randomize]:hover:not(:disabled) {
+    background: #ffffff80;
+  }
+}
+.avatar-builder {
+  margin: 20px 0 24px;
+}
+.builder-top {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+.builder-preview .avatar {
+  width: 84px;
+  height: 84px;
+}
+.builder-row {
+  display: grid;
+  grid-template-columns: 74px 1fr;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 0;
+  border-top: 1px dashed #b9ae94;
+}
+.builder-label {
+  font-size: 0.78rem;
+  font-weight: 650;
+  color: #5d5848;
+}
+.builder-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.builder-option {
+  width: 40px;
+  height: 40px;
+  padding: 3px;
+  border: 2px solid transparent;
+  border-radius: 12px;
+  background: transparent;
+  display: grid;
+  place-items: center;
+}
+.builder-option .avatar.mini,
+.builder-option .swatch {
+  width: 30px;
+  height: 30px;
+  border-radius: 10px;
+}
+.builder-option.selected {
+  border-color: var(--ink);
+  background: #ffffff70;
+}
+.builder-option:focus-visible {
+  outline: 3px solid var(--orange);
+  outline-offset: 1px;
+}
+@media (hover: hover) {
+  .builder-option:hover:not(.selected) {
+    border-color: #00000030;
+  }
+}
+@media (max-width: 440px) {
+  .builder-row {
+    grid-template-columns: 1fr;
+    gap: 2px;
+  }
+  .builder-preview .avatar {
+    width: 72px;
+    height: 72px;
+  }
+}

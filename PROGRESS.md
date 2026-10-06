@@ -67,6 +67,34 @@ Except for the explicitly dated October 6 handoff checks, the browser, device-la
 
 Use `HANDOFF.md` to resume this implementation with Claude. Start the local server and perform the four-session walkthrough. With a later hosting decision and account access, deploy the prepared one-instance Render service; recheck pricing before choosing a paid plan (the September 30 quote was $7/month base plus usage). Then playtest with 4–6 real friends on desktop/physical phones, including Discord switching. Address concrete findings, proxy-aware rate limiting and durable recovery before relying on uninterrupted public rooms. Explore an installable web app, then choose a store-app approach after those playtests; all clients should share this server's rooms and rules.
 
+## Avatar builder, October 6
+
+The fixed eight-avatar picker is replaced by a builder on the entry card: a live preview, a Randomize button, and one row each for color (10), face (8), hat (6: none, fedora, cowlick, beret, top hat, cap), glasses (4: none, round, square, monocle) and mustache (4: none, classic, handlebar, stubble). Option previews show your current suspect with only that part changed. Everything is drawn in the existing lineup style on the same 64x64 grid, so any combination lines up.
+
+**Contract and validation**
+
+- New `shared/avatar.js` (served at `/shared/avatar.js` like the protocol) holds the option lists, `normalizeAvatar`, `randomAvatar` and the legacy mapping. The server, the browser and a future mobile client use the same file.
+- An avatar is `{ color, face, hat, glasses, mustache }`, each an integer index. The server rejects anything else: missing or extra keys, out-of-range, non-integer or string values, arrays, null and markup all fail with "Choose a valid look from the avatars." Clients never send SVG or colors.
+- Legacy integers 0 to 7 are still accepted and map to exactly the original eight suspects (the detective keeps the fedora, the wildcard the cowlick), so older tabs and the existing tests keep working.
+- Snapshots carry a copy of each avatar, so changing a received snapshot cannot change the room.
+- The choice is saved on the device like the nickname (`localStorage` `alibi.avatar`, now JSON; an old saved number is migrated). A first-time player starts with a random suspect.
+
+**Judgment calls**
+
+- All rows visible at once rather than tabs: one glance shows every option, it stays keyboard and screen-reader friendly (each row is a labelled group, each option a pressed/unpressed button), and it fits the card. On phones the row labels sit above the options.
+- Color swatches are tiny SVGs because the page's Content Security Policy blocks inline style attributes; the policy was not loosened.
+- Randomize leaves hat, glasses and mustache off some of the time so random suspects are not always fully accessorized.
+- Picking an option squashes the preview; Randomize spins it around (full motion only). Both have a tap sound.
+- The old `.avatar-picker` styles in `theme.css` are now unused and were left in place.
+
+**Checks**
+
+- `npm test` 46/46: new engine test for valid, legacy and rejected avatars plus snapshot copies; new socket test that a bad avatar is rejected and custom avatars reach every player.
+- `npm run test:browser` 14/14: a new check builds a distinct look per player option by option (focus stays on each option, `aria-pressed` updates), randomizes the host, confirms the server stored it and the device remembered it, and confirms all four players see every custom suspect. The suite also caught a CSS-generated dice glyph leaking into the Randomize button's accessible name; it is now an `aria-hidden` span, and the header icons use CSS alt text so screen readers skip them.
+- Design capture, ten-player phone check (custom suspects in a full lineup, no overflow at 320px) and sound check all pass.
+
+**Vote reveal clip with sound** (`design/record-vote.mjs` now muxes audio): the cues the filming tab fired are logged on the clip's virtual clock and rendered offline with the game's own synth, plus the voting heartbeat until the ballot closes. Cue times on the phone clip: 0.80s tap (picking the suspect), 1.30s lock, 1.30s accusation hit, 4.55s imposter sting (results + 0.85s, as the imposter turns), 5.19s stamp thud (results + 1.49s, as SOLVED lands). Mix: mean -37 dB, loudest moment -14 dB where the lock and the accusation overlap.
+
 ## Sound, October 6
 
 All sound is synthesized in `public/sound.js` with the Web Audio API: no audio files, no third-party code. Nothing in it reads or changes game state; `app.js` cues it.
