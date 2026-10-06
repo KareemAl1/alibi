@@ -9,8 +9,12 @@ const port = await server.listen();
 const base = `http://127.0.0.1:${port}`;
 const output = process.env.BROWSER_ARTIFACT_DIR || "artifacts/review";
 await mkdir(output, { recursive: true });
+// BROWSER_PATH points at a specific Chromium build (e.g. in CI or a sandbox);
+// otherwise use the installed browser channel.
 const browser = await chromium.launch({
-  channel: process.env.BROWSER_CHANNEL || "chrome",
+  ...(process.env.BROWSER_PATH
+    ? { executablePath: process.env.BROWSER_PATH }
+    : { channel: process.env.BROWSER_CHANNEL || "chrome" }),
   headless: true,
 });
 const clients = [],
