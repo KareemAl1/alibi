@@ -1,4 +1,5 @@
 import { AVATARS, avatar } from "./avatars.js";
+import { afterRender, play, transition } from "./motion.js";
 import {
   CONNECTION_ERRORS,
   GAME_TIMING,
@@ -280,6 +281,7 @@ function render() {
   } else if (activeKey)
     document.querySelector("#phase-title")?.focus({ preventScroll: true });
   updateTimers();
+  afterRender(renderKey);
 }
 
 function updateTimers() {
@@ -400,9 +402,11 @@ app.addEventListener("click", async (event) => {
   } else if (el.hasAttribute("data-reveal")) {
     revealed = !revealed;
     render();
+    if (revealed) play("card", lastRenderKey);
   } else if (el.dataset.vote) {
     selectedVote = el.dataset.vote;
     render();
+    play("select", lastRenderKey);
   } else if (el.hasAttribute("data-submit-vote")) {
     await act("vote", { targetId: selectedVote });
   } else if (el.hasAttribute("data-copy")) {
@@ -524,22 +528,59 @@ async function boot() {
       connectionIssue = "";
       synced = true;
       const previousPhase = state?.phase,
-        previousRound = state?.roundId;
-      if (next?.roundId !== previousRound || next?.phase !== previousPhase) {
+        previousRound = state?.roundId,
+        previousSpeaker =
+          state?.phase === "clues" ? state.turn?.currentId : undefined;
+      const phaseChanged =
+        next?.roundId !== previousRound || next?.phase !== previousPhase;
+      if (phaseChanged) {
         revealed = false;
         selectedVote = "";
         guess = "";
       }
-      state = next;
-      if (state) {
-        history.replaceState(null, "", `/?room=${state.code}`);
-      } else if (previousPhase) {
-        history.replaceState(null, "", "/");
-        roomCode = "";
-      }
-      render();
-      if (state?.phase !== previousPhase)
-        document.querySelector("#phase-title")?.focus({ preventScroll: true });
+      const apply = () => {
+        state = next;
+        if (state) {
+          history.replaceState(null, "", `/?room=${state.code}`);
+        } else if (previousPhase) {
+          history.replaceState(null, "", "/");
+          roomCode = "";
+        }
+        render();
+        if (state?.phase !== previousPhase) {
+          // A new phase starts at its heading, not wherever the last one was
+          // scrolled to (phones kept the old position before).
+          if (previousPhase) scrollTo({ top: 0, behavior: "instant" });
+          document
+            .querySelector("#phase-title")
+            ?.focus({ preventScroll: true });
+        }
+      };
+      const mine = next?.turn?.currentId === next?.me?.id;
+      const moment = !next
+        ? null
+        : next.phase === "clues"
+          ? mine
+            ? "turn-me"
+            : "turn-other"
+          : ["reveal", "voting", "runoff", "guess", "results"].includes(
+                next.phase,
+              )
+            ? next.phase
+            : "phase";
+      const withMoment = () => {
+        apply();
+        play(moment, lastRenderKey);
+      };
+      if (previousPhase && next && phaseChanged)
+        transition(withMoment, "phase");
+      else if (
+        next?.phase === "clues" &&
+        previousSpeaker !== undefined &&
+        next.turn?.currentId !== previousSpeaker
+      )
+        withMoment();
+      else apply();
     });
     socket.connect();
   } catch (error) {

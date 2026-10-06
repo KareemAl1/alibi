@@ -140,6 +140,15 @@ export async function createAlibiServer({
     res.json({ playerId: session.playerId });
   });
   app.use(express.static(publicPath, { index: "index.html", maxAge: 0 }));
+  // GSAP is a runtime dependency served from node_modules (pinned by the
+  // lockfile) so the page loads no third-party scripts.
+  app.get("/vendor/gsap.min.js", (_req, res) =>
+    res.sendFile(
+      fileURLToPath(
+        new URL("../node_modules/gsap/dist/gsap.min.js", import.meta.url),
+      ),
+    ),
+  );
   // Deliberately expose this one public contract, never the server source/word pool.
   app.get("/shared/protocol.js", (_req, res) =>
     res.sendFile(

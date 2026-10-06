@@ -466,3 +466,59 @@ input,
     padding-top: calc(var(--floor) - 84px);
   }
 }
+
+/* Headings receive focus on each phase change for screen readers; they are
+   not controls, so they show no focus ring. */
+#phase-title:focus {
+  outline: none;
+}
+
+/* Motion (public/motion.js). View transitions keep the chrome anchored while
+   content swaps; GSAP handles each moment's entrance. Nothing here runs with
+   reduced motion: the script never starts a transition then. */
+.motion-word {
+  display: inline-block;
+  white-space: nowrap;
+}
+.motion-ch {
+  display: inline-block;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .site-header {
+    view-transition-name: site-header;
+  }
+  .room-bar {
+    view-transition-name: room-bar;
+  }
+  .phase-steps {
+    view-transition-name: phase-steps;
+  }
+  .action-dock {
+    view-transition-name: action-dock;
+  }
+  /* Chrome stays put (the page also scrolls to the top on a phase change),
+     its contents crossfade in place. */
+  ::view-transition-group(site-header),
+  ::view-transition-group(room-bar),
+  ::view-transition-group(phase-steps),
+  ::view-transition-group(action-dock) {
+    animation-duration: 0s;
+  }
+  ::view-transition-old(root) {
+    animation: 0.2s cubic-bezier(0.4, 0, 1, 1) both alibi-leave;
+  }
+  ::view-transition-new(root) {
+    animation: 0.28s cubic-bezier(0, 0, 0.2, 1) both alibi-enter;
+  }
+}
+@keyframes alibi-leave {
+  to {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+}
+@keyframes alibi-enter {
+  from {
+    opacity: 0;
+  }
+}

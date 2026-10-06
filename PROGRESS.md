@@ -67,6 +67,45 @@ Except for the explicitly dated October 6 handoff checks, the browser, device-la
 
 Use `HANDOFF.md` to resume this implementation with Claude. Start the local server and perform the four-session walkthrough. With a later hosting decision and account access, deploy the prepared one-instance Render service; recheck pricing before choosing a paid plan (the September 30 quote was $7/month base plus usage). Then playtest with 4–6 real friends on desktop/physical phones, including Discord switching. Address concrete findings, proxy-aware rate limiting and durable recovery before relying on uninterrupted public rooms. Explore an installable web app, then choose a store-app approach after those playtests; all clients should share this server's rooms and rules.
 
+## Motion pass, October 6
+
+GSAP 3.15.0 (runtime dependency, pinned, served by the app at `/vendor/gsap.min.js`; no CDN) plus the View Transitions API. All motion lives in `public/motion.js`; `public/app.js` only calls it at four points (phase change, card reveal, vote pick, speaking turn). No game rules, server rules or copy changed.
+
+**Moments and lengths** (measured from the running app)
+
+| Moment               | What happens                                                                                                                                                      | Length        |
+| -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------- |
+| Phase change (any)   | View transition: header, room bar, phase steps and phone action bar stay anchored while content crossfades; the heading and supporting lines rise in              | 0.44 to 0.50s |
+| Cards dealt          | Same, plus the private card slides in face down                                                                                                                   | 0.50s         |
+| Revealing your card  | The card flips, then the word types on letter by letter                                                                                                           | 0.60s         |
+| Your clue turn       | Your avatar drops under the lamp, "Your turn." punches in, the Done button follows                                                                                | 0.56s         |
+| Someone else's turn  | The new speaker slides under the lamp; the speaking-order highlight moves                                                                                         | 0.36s         |
+| Voting opens         | Suspects step into the lineup                                                                                                                                     | 0.50s         |
+| Picking a suspect    | Their placard flips orange                                                                                                                                        | 0.24s         |
+| Vote reveal (caught) | The "!" pops, the heading lands, the accused name drops in letter by letter, the ballot appears                                                                   | 1.1s          |
+| Results              | Verdict, the card, the secret word typed in, the imposter turns around, the SOLVED / ESCAPED stamp slams with a card thud, then the ballot reads out vote by vote | 2.0s          |
+
+Staggers are capped by total spread, so a ten-player room takes as long as a four-player one.
+
+**Judgment calls**
+
+- **Scroll to top on every phase change.** The before clip showed phones staying at the old scroll position, so the "Caught" screen and the results stamp landed off-screen. A new phase now starts at its heading. Focus still moves to the heading for screen readers.
+- **No view transitions for speaking turns.** On a 4x-throttled phone the whole-page snapshot made each turn's switch frame up to 246ms versus 105ms without it, for one sliding highlight. Turns happen most often, so GSAP alone animates them. Phase changes keep view transitions.
+- **Moments survive re-renders.** `app.js` re-renders the whole page on every update, and the last voter's server acknowledgement arrives right after the phase change. A running moment is rebuilt on the new elements and fast-forwarded on GSAP's own clock instead of being cut off.
+- **Tweens clear their inline styles when they finish** (`clearProps`), so a control never keeps an entrance's opacity. This fixed a disabled "Lock in my vote" keeping its dim state inline.
+- **Screen headings no longer show a focus ring** after a phase change. They receive focus programmatically for screen readers and are not controls.
+- Card reveal (0.60s) and your clue turn (0.56s) run slightly over half a second because they are on the big-moment list; routine phase changes were trimmed to 0.5s or under.
+- Letter animations group letters per word so words never wrap mid-word; the element keeps its full text as its accessible name.
+- GSAP is used under its standard no-charge license (commercial use allowed). `npm audit --omit=dev` reports no vulnerabilities.
+
+**Reduced motion.** With `prefers-reduced-motion: reduce`, `motion.js` starts no view transition and no GSAP moment; screens appear in their final state (still scrolled to the top). Verified by `design/motion-perf.mjs --reduced`: 0 view transitions, 0 moments, 0 hidden elements, p95 frame 16.8ms. The existing CSS rule that disables CSS animations under reduced motion is unchanged.
+
+**Smoothness check (`design/motion-perf.mjs`)**: one 390x844 touch phone with CPU throttled 4x through DevTools plays a full round while three desktop players run with reduced motion (the container has 2 cores; letting all four tabs animate starved the measured one and was the cause of the large hitches in the first runs). Results: p95 frame time 16.7 to 33ms across moments, with 0 to 5 long frames per moment, which are the full-page re-render frame (also present before the motion pass, worst 50 to 130ms there; 150 to 300ms now when a view transition snapshot is added). Nothing left hidden. Headless Chromium renders without a GPU, so these numbers are pessimistic and relative; real phones were not tested.
+
+**Clips (`design/record-vote.mjs`)**: the vote reveal from the last voter's seat, before and after, phone and desktop, plus a reduced-motion phone clip. Rendered frame by frame at 30fps on a virtual clock (GSAP ticker driven by a stepped `Date.now`, Web Animations stepped by `currentTime`), because headless screencasts dropped to about 5 distinct frames per second. They show the motion as designed, not measured performance. Clips stay in ignored `artifacts/`.
+
+Checks: `npm test` 44/44, `npm run test:browser` 13/13, design capture (one big all-caps heading per screen, no overflow), ten-player phone check (0 dock overlaps), Prettier.
+
 ## Proxy-aware rate limiting, October 6
 
 - `POST /api/session` now limits returning players per session token (30/minute) and new sessions per client address (60/minute). Before, every request was keyed on the TCP peer, so all players behind a reverse proxy, and friends on one network, shared one 60/minute bucket.
