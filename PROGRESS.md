@@ -67,6 +67,43 @@ Except for the explicitly dated October 6 handoff checks, the browser, device-la
 
 Use `HANDOFF.md` to resume this implementation with Claude. Start the local server and perform the four-session walkthrough. With a later hosting decision and account access, deploy the prepared one-instance Render service; recheck pricing before choosing a paid plan (the September 30 quote was $7/month base plus usage). Then playtest with 4–6 real friends on desktop/physical phones, including Discord switching. Address concrete findings, proxy-aware rate limiting and durable recovery before relying on uninterrupted public rooms. Explore an installable web app, then choose a store-app approach after those playtests; all clients should share this server's rooms and rules.
 
+## Sound, October 6
+
+All sound is synthesized in `public/sound.js` with the Web Audio API: no audio files, no third-party code. Nothing in it reads or changes game state; `app.js` cues it.
+
+| Cue         | When                                              | Sound                                                                                                                           |
+| ----------- | ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| tap         | any button, tab, category or summary press        | soft wooden tick                                                                                                                |
+| flip        | revealing your card                               | paper swipe and snap                                                                                                            |
+| lock        | locking your vote                                 | latch clicking shut                                                                                                             |
+| turn        | your clue turn starts                             | two soft vibraphone notes                                                                                                       |
+| heartbeat   | while voting or the runoff is open                | low lub-dub that quickens from 58 to 92 bpm as votes lock                                                                       |
+| accuse      | the ballot closes on someone (final guess screen) | low hit with a held dissonance                                                                                                  |
+| sting       | results, when the imposter turns around           | muted-brass noir stab falling a tritone                                                                                         |
+| escape      | results, when the imposter got away               | short rising figure that does not resolve                                                                                       |
+| thud        | results, when the SOLVED / ESCAPED stamp lands    | low stamp hit                                                                                                                   |
+| lobby music | in the lobby only                                 | 76 bpm D minor vamp: walking upright bass, brushes on two and four, a soft electric-piano chord each bar (Dm7, Bbmaj7, Gm7, A7) |
+
+**Behavior**
+
+- Audio starts on the first tap or key press anywhere (browsers block sound before a gesture). Before that, nothing is created.
+- Header "Sound on / Sound off" toggle, remembered on the device (`localStorage` `alibi.sound`). On phones the header shows icons (note for sound, wave for motion) and the connection dot without its words, which stay available to screen readers.
+- Music fades in over 2 seconds in the lobby and out when the round starts. All sound stops when the tab is hidden (switching to Discord or locking the phone) and resumes on return.
+- Results cues line up with the results animation (sting at 0.85s as the imposter turns, thud at 1.49s as the stamp lands). With reduced motion they play straight away.
+
+**Loudness** (`design/sound-check.mjs`, rendered offline in Chromium, dBFS at full device volume). Every one-shot peaks at -18 dBFS or lower; the heartbeat, which can run for 90 seconds, peaks at -24 with -38 RMS; the music sits at -38 RMS. Speech on a call is typically around -20 to -12 RMS, so the game stays under the conversation. Signals pass through a gentle compressor so stacked cues cannot jump.
+
+**Live checks** (same script): no audio before a tap; first tap starts audio and lobby music; mute stops it and is remembered across a reload; unmute restores it; music stops when the round starts; heartbeat runs during voting and stops when the ballot closes. All pass.
+
+**Judgment calls**
+
+- Sound defaults to on, but nothing plays until the player taps something, so joining a room never blasts audio.
+- Added three cues beyond the request (lock, turn, escape) because those moments felt silent next to the rest; all are quieter than the requested ones.
+- No sound for other players' votes: the heartbeat quickening carries that without revealing anything new.
+- I cannot listen from this environment. Levels, timing and the start, mute and stop behavior are measured; how the sounds feel needs a real listen.
+
+Checks: `npm test` 44/44, `npm run test:browser` 13/13 (the 320px check caught the header overflowing with two toggles, fixed by the phone icons).
+
 ## Motion check and interaction pass, October 6
 
 **Why motion looked missing on Kareem's PC.** Checked in the desktop app's browser pane against the PC's own `localhost:3000`: GSAP 3.15.0 loaded and the View Transitions API was present, but `prefers-reduced-motion: reduce` was **true**. Windows reports that whenever Settings > Accessibility > Visual effects > Animation effects is off (also switched off by "Adjust for best performance" and some remote-desktop setups). The game was correctly obeying it and skipping all motion. Not a code bug, but reduced motion was all-or-nothing.

@@ -8,6 +8,13 @@ import {
   transition,
 } from "./motion.js";
 import {
+  setScene,
+  setSoundEnabled,
+  sfx,
+  soundEnabled,
+  unlock as unlockSound,
+} from "./sound.js";
+import {
   CONNECTION_ERRORS,
   GAME_TIMING,
   createActionEnvelope,
@@ -490,6 +497,68 @@ window.addEventListener("blur", () => {
   }
 });
 
+// Sound cues for what just changed. Results cues line up with the results
+// moment in motion.js (imposter turns at 0.85s, stamp lands at 1.49s); with
+// reduced motion they play straight away.
+function cue(next, previousPhase, previousSpeaker) {
+  setScene({
+    phase: next?.phase || "entry",
+    votingRatio: next?.voting ? next.voting.submitted / next.voting.total : 0,
+  });
+  if (!next) return;
+  const full = motionMode() === "full";
+  if (next.phase !== previousPhase) {
+    if (next.phase === "guess") sfx("accuse");
+    if (next.phase === "results" && next.result) {
+      const won = next.result.winner;
+      if (won) sfx("sting", full ? 0.85 : 0);
+      if (won === "imposter") sfx("escape", full ? 1.2 : 0.4);
+      sfx("thud", full ? 1.49 : 0.5);
+    }
+  }
+  const speaker = next.phase === "clues" ? next.turn?.currentId : undefined;
+  if (
+    speaker &&
+    speaker === next.me?.id &&
+    (speaker !== previousSpeaker || next.phase !== previousPhase)
+  )
+    sfx("turn", 0.15);
+}
+
+// Every press gets a sound: card reveal flips, locking a vote latches, the
+// rest tick. The first press also starts audio (browsers require a gesture).
+document.addEventListener("pointerdown", () => unlockSound(), {
+  capture: true,
+});
+document.addEventListener("keydown", () => unlockSound(), { capture: true });
+document.addEventListener(
+  "click",
+  (event) => {
+    const el = event.target.closest("button, summary, .category");
+    if (!el || el.disabled) return;
+    if (el.id === "sound-toggle") return;
+    if (el.hasAttribute("data-reveal")) sfx(revealed ? "tap" : "flip");
+    else if (el.hasAttribute("data-submit-vote")) sfx("lock");
+    else sfx("tap");
+  },
+  { capture: true },
+);
+
+const soundToggle = document.querySelector("#sound-toggle");
+function syncSoundToggle() {
+  if (!soundToggle) return;
+  const on = soundEnabled();
+  soundToggle.setAttribute("aria-pressed", String(on));
+  soundToggle.querySelector("span").textContent = on ? "Sound on" : "Sound off";
+  soundToggle.title = on ? "Mute game sounds" : "Turn game sounds on";
+}
+soundToggle?.addEventListener("click", () => {
+  setSoundEnabled(!soundEnabled());
+  syncSoundToggle();
+  if (soundEnabled()) sfx("tap");
+});
+syncSoundToggle();
+
 // Header motion toggle. It starts on whatever the device asks for and the
 // player can override it; the choice is remembered on this device only.
 const motionToggle = document.querySelector("#motion-toggle");
@@ -611,6 +680,7 @@ async function boot() {
       const withMoment = () => {
         apply();
         play(moment, lastRenderKey);
+        cue(next, previousPhase, previousSpeaker);
       };
       if (previousPhase && next && phaseChanged)
         transition(withMoment, "phase");
@@ -623,6 +693,7 @@ async function boot() {
       else {
         const before = state?.voting?.submitted ?? 0;
         apply();
+        cue(next, previousPhase, previousSpeaker);
         if ((next?.voting?.submitted ?? 0) > before)
           play("vote-tick", lastRenderKey);
       }
