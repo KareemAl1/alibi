@@ -337,8 +337,8 @@ function arrangePhoneControls() {
     reveal: '[data-action="ready"]',
     clues: '[data-action="done"]',
     discussion: '[data-action="vote-start"]',
-    voting: "[data-submit-vote]",
-    runoff: "[data-submit-vote]",
+    // Voting and runoff keep "Lock in my vote" inline under the lineup: a
+    // fixed dock would slide over suspects while scrolling a full room.
     guess: "#guess-form button",
   }[state.phase];
   const primary = selector && app.querySelector(selector);
@@ -353,13 +353,9 @@ function arrangePhoneControls() {
       ? "Your turn · give your clue aloud"
       : state.phase === "reveal"
         ? "Read your private card first"
-        : ["voting", "runoff"].includes(state.phase)
-          ? state.me.hasVoted
-            ? "Your vote is private until the ballot closes"
-            : "Choose a suspect above, then lock your vote"
-          : state.phase === "guess"
-            ? "One final guess · enter it above"
-            : "Same room. All your friends.";
+        : state.phase === "guess"
+          ? "One final guess · enter it above"
+          : "Same room. All your friends.";
   dock.append(caption, primary);
   app.append(dock);
   document.body.classList.add("has-action-dock");

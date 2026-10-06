@@ -30,6 +30,7 @@ const browser = await chromium.launch({
     : {}),
 });
 const errors = [];
+const headings = [];
 const players = [];
 
 async function open(nick) {
@@ -99,6 +100,25 @@ async function shot(p, name) {
       () => document.documentElement.scrollWidth > innerWidth,
     );
     if (overflow) errors.push(`${name} ${suffix}: horizontal overflow`);
+    // One big all-caps heading per screen: count visible headings at 28px+
+    // that render in capitals (CSS uppercase or all-caps text).
+    const caps = await p.page.evaluate(() =>
+      [...document.querySelectorAll("main h1, main h2, main h3")]
+        .filter((el) => {
+          const cs = getComputedStyle(el);
+          const text = el.innerText.trim();
+          return (
+            el.offsetParent !== null &&
+            parseFloat(cs.fontSize) >= 28 &&
+            /[a-z]/i.test(text) &&
+            (cs.textTransform === "uppercase" || text === text.toUpperCase())
+          );
+        })
+        .map((el) => el.innerText.trim().replace(/\s+/g, " ")),
+    );
+    headings.push(`${name}-${suffix}: ${caps.length} (${caps.join(" | ")})`);
+    if (caps.length > 1)
+      errors.push(`${name} ${suffix}: ${caps.length} big all-caps headings`);
     await p.page.screenshot({
       path: `${out}/${name}-${suffix}.png`,
       fullPage: true,
@@ -171,6 +191,7 @@ await imposter.page.getByLabel("Your final guess").fill("pretzel");
 await btn(imposter, "Submit final guess").click();
 await all((s) => s.phase === "results");
 await shot(host, "8-results");
+console.log(headings.join("\n"));
 console.log(
   errors.length
     ? `PROBLEMS:\n${errors.join("\n")}`

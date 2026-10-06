@@ -79,31 +79,33 @@ h1 {
 .case-settings h2,
 .result-next h2,
 .concealed h3 {
-  font-weight: 750;
-  text-transform: uppercase;
-  line-height: 0.98;
+  /* Secondary headings stay sentence case so each screen has one big
+     all-caps heading: its h1. */
+  font-weight: 700;
+  line-height: 1;
 }
 .entry-card h2,
 .case-settings h2 {
-  font-size: 2.5rem;
+  font-size: 2.1rem;
 }
 .result-next h2 {
-  font-size: 2.6rem;
+  font-size: 2.2rem;
 }
 .concealed h3 {
-  font-size: 1.9rem;
+  font-size: 1.7rem;
 }
 .role-content h2,
 .result-card h2 {
+  /* The secret word is shown as written, large but not as a second
+     all-caps heading. */
   font-weight: 800;
-  text-transform: uppercase;
   line-height: 0.95;
 }
 .role-content h2 {
   font-size: clamp(2.6rem, 4vw, 3.4rem);
 }
 .result-card h2 {
-  font-size: clamp(3.2rem, 6vw, 4.8rem);
+  font-size: clamp(3rem, 5.6vw, 4.4rem);
 }
 .step-number {
   font-weight: 800;
@@ -212,7 +214,7 @@ input,
   align-items: center;
   justify-content: flex-start;
   gap: 0;
-  height: 218px;
+  min-height: 218px;
   min-height: 0;
   padding: calc(var(--floor) - 96px) 4px 0;
   border: 0;
@@ -400,12 +402,57 @@ input,
     font-size: 1.25rem;
   }
 }
+/* Full rooms on phones: seven or more suspects switch to a tighter
+   three-column lineup so the whole vote stays short. */
+@media (max-width: 760px) {
+  .players-grid:has(> :nth-child(7)),
+  .vote-grid:has(> :nth-child(7)) {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    row-gap: 14px;
+  }
+  .players-grid:has(> :nth-child(7)) > *,
+  .vote-grid:has(> :nth-child(7)) > * {
+    --floor: 104px;
+    min-height: 164px;
+    padding-top: calc(var(--floor) - 66px);
+  }
+  .players-grid:has(> :nth-child(7)) .avatar,
+  .vote-grid:has(> :nth-child(7)) .avatar,
+  .players-grid:has(> :nth-child(7)) .empty-avatar {
+    width: 66px;
+    height: 66px;
+  }
+  .players-grid:has(> :nth-child(7)) b,
+  .vote-grid:has(> :nth-child(7)) b {
+    font-size: 0.95rem;
+    letter-spacing: 0.01em;
+    padding: 7px 3px 6px;
+    overflow-wrap: break-word;
+    hyphens: auto;
+  }
+  .players-grid:has(> :nth-child(7)) .player-status,
+  .vote-grid:has(> :nth-child(7)) .vote-candidate > span {
+    font-size: 0.72rem;
+    padding-top: 5px;
+  }
+  .players-grid:has(> :nth-child(7)) .online-dot {
+    top: calc(var(--floor) + 12px);
+    right: 6px;
+  }
+}
 @media (max-width: 360px) {
+  .players-grid:has(> :nth-child(7)) b,
+  .vote-grid:has(> :nth-child(7)) b {
+    font-size: 0.8rem;
+    letter-spacing: 0;
+    padding-left: 1px;
+    padding-right: 1px;
+  }
   .player-tile,
   .vote-candidate,
   .player-tile.empty {
     --floor: 132px;
-    height: 202px;
+    min-height: 202px;
   }
   .player-tile .avatar,
   .vote-candidate .avatar,

@@ -67,6 +67,28 @@ Except for the explicitly dated October 6 handoff checks, the browser, device-la
 
 Use `HANDOFF.md` to resume this implementation with Claude. Start the local server and perform the four-session walkthrough. With a later hosting decision and account access, deploy the prepared one-instance Render service; recheck pricing before choosing a paid plan (the September 30 quote was $7/month base plus usage). Then playtest with 4–6 real friends on desktop/physical phones, including Discord switching. Address concrete findings, proxy-aware rate limiting and durable recovery before relying on uninterrupted public rooms. Explore an installable web app, then choose a store-app approach after those playtests; all clients should share this server's rooms and rules.
 
+## Ten-player phone check and heading pass, October 6
+
+Requested follow-up to the Lineup pass. No game rules, server code or copy changed.
+
+**Ten players on a 390px phone.** New `design/crowd.mjs` fills a room to the 10-player maximum (one 390x844 phone host, nine desktop players), screenshots the lobby and vote, scrolls the vote screen in 20px steps measuring overlap between the fixed action dock and every suspect tile, then picks a suspect and locks the vote from the phone.
+
+- Before: the vote lineup was 2 columns and 1,162px tall; the dock overlapped suspects at 54 scroll positions, every one of the 10 suspects at some point.
+- After: 0 overlapping positions, lineup 706px tall, no sideways scroll at 390px or 320px (with a 20-character name), vote locked from the phone, no page errors.
+
+**Judgment calls**
+
+- The phone action dock is no longer used on the voting and runoff screens. A fixed bar overlays the page by design, so the only way it never covers a suspect while scrolling is to not float over the lineup. "Lock in my vote" now sits directly under the lineup, which is where the eye already is after picking. The dock is unchanged on the lobby, card, clue, discussion, final guess and results screens.
+- Rooms with 7 or more suspects switch to a tighter 3-column lineup on phones (`:has(> :nth-child(7))`), so 10 players fit in 4 rows instead of 5 and the lock button stays close. Four to six players keep the larger 2-column lineup.
+- Lineup tiles now use a minimum height instead of a fixed one, so a long name can wrap onto a second placard line without spilling into the next row; the floor line still aligns because it is set by top padding. On phones at 360px or narrower, full-room placards drop letter spacing so a name like "Anastasia Wolfington" wraps at the space. `hyphens: auto` is set as a further fallback but headless Chromium on Linux has no hyphenation dictionary, so it is unverified here.
+- One big all-caps heading per screen: each screen's h1 stays uppercase. The card headings ("Take a seat.", "Pick your territory.", "A little secret.", "Another round? Another alibi.") are now sentence case and smaller. The secret word on the private card and on results shows as written ("Candle") rather than forced to capitals; it stays the largest text on the card. Buttons and name placards keep capitals since they are labels, not headings.
+- `design/capture.mjs` now counts visible h1/h2/h3 at 28px or larger that render in capitals and fails if a screen has more than one. Before this pass every screen had 2 or 3; after, all 20 captured screens (10 screens at desktop and phone) have exactly 1.
+
+**Verification**
+
+- `npm test` 40/40; `npm run test:browser` 13/13 (headless Chromium, cloud workspace); Prettier and `git diff --check` clean.
+- Not checked: real phones, iOS Safari's own `:has()` and hyphenation behavior, or a real ten-person playtest.
+
 ## Visual direction pass, October 6
 
 Commits `5cce05b` (direction studies) and `80e9d07` (Lineup applied). No game rules, server code, word pool or game copy changed.
