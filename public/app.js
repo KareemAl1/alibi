@@ -2,7 +2,6 @@ import { avatar, describeAvatar, lookOf } from "./avatars.js";
 import { AVATAR_PARTS, normalizeAvatar, randomAvatar } from "/shared/avatar.js";
 import {
   afterRender,
-  deviceReducesMotion,
   motionMode,
   play,
   setMotionPreference,
@@ -598,8 +597,8 @@ soundToggle?.addEventListener("click", () => {
 });
 syncSoundToggle();
 
-// Header motion toggle. It starts on whatever the device asks for and the
-// player can override it; the choice is remembered on this device only.
+// Header motion toggle. Motion is on by default for everyone; a player can
+// turn it down here and the choice is remembered on this device only.
 const motionToggle = document.querySelector("#motion-toggle");
 function syncMotionToggle() {
   if (!motionToggle) return;
@@ -610,9 +609,7 @@ function syncMotionToggle() {
     : "Motion reduced";
   motionToggle.title = full
     ? "Animations are on. Tap for reduced motion."
-    : deviceReducesMotion()
-      ? "Your device asks for reduced motion, so only gentle fades play. Tap to turn full motion on."
-      : "Only gentle fades play. Tap to turn full motion on.";
+    : "Only gentle fades play. Tap to turn full motion on.";
 }
 motionToggle?.addEventListener("click", () => {
   setMotionPreference(motionMode() === "full" ? "reduced" : "full");

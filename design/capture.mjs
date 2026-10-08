@@ -36,8 +36,11 @@ const players = [];
 async function open(nick) {
   const context = await browser.newContext({
     viewport: { width: 1280, height: 900 },
-    reducedMotion: "reduce",
   });
+  // Still screenshots: the player's own motion choice, set to reduced.
+  await context.addInitScript(() =>
+    localStorage.setItem("alibi.motion", "reduced"),
+  );
   await context.route("**/__design/**", async (route) => {
     const file = path.join(
       designRoot,

@@ -110,10 +110,11 @@ const viewport =
   only === "desktop"
     ? { width: 1280, height: 800 }
     : { width: 390, height: 844 };
-const context = await browser.newContext({
-  viewport,
-  reducedMotion: reduced ? "reduce" : "no-preference",
-});
+const context = await browser.newContext({ viewport });
+if (reduced)
+  await context.addInitScript(() =>
+    localStorage.setItem("alibi.motion", "reduced"),
+  );
 await context.addCookies(await last.context.cookies());
 // GSAP reads Date.now when it loads. In frame mode this clock stands still
 // between frames and advances exactly one frame per screenshot.

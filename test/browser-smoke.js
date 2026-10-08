@@ -408,6 +408,28 @@ async function reconnectChecks() {
 
 let failure;
 try {
+  // Motion is on by default even when the device asks for reduced motion;
+  // the header toggle turns it down and the choice survives a reload.
+  {
+    const context = await browser.newContext({ reducedMotion: "reduce" });
+    const page = await context.newPage();
+    await page.goto(base);
+    const root = page.locator("html");
+    await expect(root).toHaveAttribute("data-motion", "full");
+    const toggle = page.locator("#motion-toggle");
+    await expect(toggle).toHaveAttribute("aria-pressed", "true");
+    await toggle.click();
+    await expect(root).toHaveAttribute("data-motion", "reduced");
+    await expect(toggle).toHaveAttribute("aria-pressed", "false");
+    await page.reload();
+    await expect(root).toHaveAttribute("data-motion", "reduced");
+    await page.locator("#motion-toggle").click();
+    await expect(root).toHaveAttribute("data-motion", "full");
+    await context.close();
+    record(
+      "Motion is on by default on a device that asks for reduced motion; the header toggle turns it down and the choice is remembered after a reload.",
+    );
+  }
   const a = await client("Sam");
   await capturePair(a, "entry", "Create a private room");
   await a.page.getByLabel("What should we call you?").fill("Sam");

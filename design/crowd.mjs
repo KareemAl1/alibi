@@ -38,8 +38,11 @@ async function open(nick, phone) {
     viewport: phone
       ? { width: 390, height: 844 }
       : { width: 1280, height: 900 },
-    reducedMotion: "reduce",
   });
+  // Still screenshots: the player's own motion choice, set to reduced.
+  await context.addInitScript(() =>
+    localStorage.setItem("alibi.motion", "reduced"),
+  );
   const page = await context.newPage();
   const p = { nick, page, state: null };
   page.on("pageerror", (e) => errors.push(`${nick}: ${e.message}`));

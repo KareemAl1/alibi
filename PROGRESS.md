@@ -67,6 +67,19 @@ Except for the explicitly dated October 6 handoff checks, the browser, device-la
 
 Use `HANDOFF.md` to resume this implementation with Claude. Start the local server and perform the four-session walkthrough. With a later hosting decision and account access, deploy the prepared one-instance Render service; recheck pricing before choosing a paid plan (the September 30 quote was $7/month base plus usage). Then playtest with 4–6 real friends on desktop/physical phones, including Discord switching. Address concrete findings, proxy-aware rate limiting and durable recovery before relying on uninterrupted public rooms. Explore an installable web app, then choose a store-app approach after those playtests; all clients should share this server's rooms and rules.
 
+## Motion on by default, October 8
+
+Kareem's decision: motion is on for everyone and the game no longer follows the device's `prefers-reduced-motion` setting. The header toggle stays, so any player can choose "Motion reduced" (gentle fades only, nothing moving), and that choice is remembered on their device (`localStorage` `alibi.motion`).
+
+- `public/motion.js`: the mode is the stored choice, defaulting to full; the device media query and its listener are gone. Players who had already tapped the toggle keep their choice.
+- `public/theme.css`: removed the blanket rule that switched off CSS animations and transitions under the device setting. Reduced motion now comes only from `html[data-motion="reduced"]` in `motion.css`.
+- Toggle tooltip no longer mentions the device.
+- **Trade-off, noted for the record:** players who rely on their device's reduced-motion setting will see full motion until they use the toggle.
+- **Fix found while testing:** with motion now running inside the browser suite, the results stamp's slam (it starts at 2.8x scale near the card edge) briefly widened the page, which on a phone would flash a sideways scroll. `#app` now clips horizontal overflow (`overflow-x: clip`, which keeps sticky positioning; on `body` it propagates to the page as `hidden`, which still counted as scrollable width).
+- Design scripts that relied on the device setting for still screenshots now set the player's stored choice instead. `design/motion-perf.mjs --override` checks a device that asks for reduced motion gets full motion by default; `--reduced` checks the player's reduced choice.
+
+Checks: `npm test` 46/46. `npm run test:browser` 15/15, now with full motion running through every flow, plus a new check that a reduced-motion device starts with motion on, the toggle turns it down, and the choice survives a reload. Motion check: device asking for reduced motion still played every moment (19 view transitions); player-chosen reduced played none. Design capture, ten-player phone check and sound check pass.
+
 ## Avatar builder, October 6
 
 The fixed eight-avatar picker is replaced by a builder on the entry card: a live preview, a Randomize button, and one row each for color (10), face (8), hat (6: none, fedora, cowlick, beret, top hat, cap), glasses (4: none, round, square, monocle) and mustache (4: none, classic, handlebar, stubble). Option previews show your current suspect with only that part changed. Everything is drawn in the existing lineup style on the same 64x64 grid, so any combination lines up.

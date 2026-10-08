@@ -1784,14 +1784,5 @@ main {
     height: 43px;
   }
 }
-/* Until motion.js sets <html data-motion>, follow the device. A player who
-   turns motion on in the header (data-motion="full") is not overridden. */
-@media (prefers-reduced-motion: reduce) {
-  html:not([data-motion="full"]) *,
-  html:not([data-motion="full"]) *:before,
-  html:not([data-motion="full"]) *:after {
-    animation: none !important;
-    transition: none !important;
-    scroll-behavior: auto !important;
-  }
-}
+/* Reduced motion is a player choice (header toggle), applied through
+   html[data-motion="reduced"] in motion.css; the device setting is not used. */

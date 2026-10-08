@@ -12,8 +12,8 @@ import { chromium, expect } from "@playwright/test";
 import { createAlibiServer } from "../server/index.js";
 
 const reduced = process.argv.includes("--reduced");
-// --override: the device asks for reduced motion but the player turned
-// motion on with the header toggle (stored in localStorage).
+// --override: the device asks for reduced motion and the player has not
+// touched the toggle; motion should still be on by default.
 const override = process.argv.includes("--override");
 // --no-vt removes the View Transitions API to isolate GSAP's own cost.
 const noVt = process.argv.includes("--no-vt");
@@ -34,15 +34,18 @@ async function open(nick, phone) {
     viewport: phone
       ? { width: 390, height: 844 }
       : { width: 1280, height: 800 },
-    // Only the measured phone animates; the other players' tabs run with
-    // reduced motion so they do not compete for this machine's CPU.
-    reducedMotion: phone && !reduced && !override ? "no-preference" : "reduce",
+    // --override: the device asks for reduced motion; the game should still
+    // play full motion because it no longer follows that setting.
+    reducedMotion: phone && override ? "reduce" : "no-preference",
     isMobile: Boolean(phone),
     hasTouch: Boolean(phone),
   });
-  if (phone && override)
+  // Only the measured phone animates; the other players' tabs choose reduced
+  // motion so they do not compete for this machine's CPU. --reduced makes the
+  // phone choose it too (the header toggle's stored choice).
+  if (!phone || reduced)
     await context.addInitScript(() =>
-      localStorage.setItem("alibi.motion", "full"),
+      localStorage.setItem("alibi.motion", "reduced"),
     );
   if (phone && noVt)
     await context.addInitScript(() => {
@@ -234,7 +237,7 @@ await moment(
 
 const vtCount = await phone.page.evaluate(() => window.__vt);
 console.log(
-  `${reduced ? "REDUCED MOTION" : override ? "DEVICE REDUCED, PLAYER TURNED MOTION ON" : noVt ? "GSAP ONLY" : "MOTION"} · phone 390x844 · CPU ${cpu}x · view transitions started: ${vtCount}`,
+  `${reduced ? "PLAYER CHOSE REDUCED MOTION" : override ? "DEVICE ASKS FOR REDUCED MOTION, DEFAULT" : noVt ? "GSAP ONLY" : "MOTION"} · phone 390x844 · CPU ${cpu}x · view transitions started: ${vtCount}`,
 );
 console.table(
   rows.map((r) => ({

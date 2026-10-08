@@ -4,7 +4,16 @@
    opacity changes only. Everything that loops animates transform or opacity
    so phones can composite it without repainting. */
 
-/* Header toggles (motion now, sound later) */
+/* Entrances scale and slide things past the edges for a moment (the results
+   stamp starts at 2.8x). Clip sideways overflow so phones never get a flash
+   of horizontal scroll. Applied to the game container rather than body,
+   because body's overflow passes to the page as plain "hidden", which still
+   counts as scrollable width. The fixed phone action bar is not affected. */
+#app {
+  overflow-x: clip;
+}
+
+/* Header toggles */
 .header-controls {
   display: flex;
   gap: 8px;

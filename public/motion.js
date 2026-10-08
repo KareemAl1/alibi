@@ -10,39 +10,32 @@
 //   of being cut off.
 // - Motion has two modes, set on <html data-motion>: "full", and "reduced",
 //   which keeps short fades and color changes but nothing that moves, scales
-//   or rotates. The mode follows the device's prefers-reduced-motion setting
-//   until the player picks one with the header toggle (remembered locally).
+//   or rotates. Motion is on for everyone by default and does not follow
+//   the device's prefers-reduced-motion setting (Kareem's call, October 8).
+//   A player turns it down with the header toggle; that choice is
+//   remembered on their device.
 
-const reduceQuery = matchMedia("(prefers-reduced-motion: reduce)");
 const lib = () => window.gsap;
 const PREF_KEY = "alibi.motion";
 
 export function motionPreference() {
   try {
     const value = localStorage.getItem(PREF_KEY);
-    return value === "full" || value === "reduced" ? value : "system";
+    return value === "reduced" ? "reduced" : "full";
   } catch {
-    return "system";
+    return "full";
   }
 }
-export function motionMode() {
-  const pref = motionPreference();
-  if (pref !== "system") return pref;
-  return reduceQuery.matches ? "reduced" : "full";
-}
-/** True when the device itself asks for reduced motion. */
-export const deviceReducesMotion = () => reduceQuery.matches;
+export const motionMode = motionPreference;
 export function setMotionPreference(value) {
   try {
-    if (value === "system") localStorage.removeItem(PREF_KEY);
-    else localStorage.setItem(PREF_KEY, value);
+    localStorage.setItem(PREF_KEY, value === "reduced" ? "reduced" : "full");
   } catch {}
   applyMotionMode();
 }
 function applyMotionMode() {
   document.documentElement.dataset.motion = motionMode();
 }
-reduceQuery.addEventListener?.("change", applyMotionMode);
 applyMotionMode();
 
 export const motionAllowed = () => motionMode() === "full" && Boolean(lib());
