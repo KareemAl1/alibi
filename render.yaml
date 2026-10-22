@@ -1,5 +1,5 @@
 # Paid, single-process hosting for the existing Express + Socket.IO app.
-# See DEPLOYMENT.md before creating this service: expected base cost is $7/month.
+# Expected base cost is $7/month on the 0.5 CPU plan.
 services:
   - type: web
     name: alibi
@@ -17,7 +17,7 @@ services:
       - key: HOST
         value: 0.0.0.0
       # Render sits in front of the app as a reverse proxy. Confirm the hop
-      # count from X-Forwarded-For during the first deploy (DEPLOYMENT.md).
+      # count from X-Forwarded-For during the first deploy.
       - key: TRUST_PROXY_HOPS
         value: "1"
       - key: PUBLIC_ORIGIN

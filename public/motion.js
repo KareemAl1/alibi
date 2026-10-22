@@ -3,7 +3,7 @@
 //
 // - View Transitions keep the header, room bar and phase steps anchored while a
 //   phase swaps. Speaking turns skip them: a whole-page snapshot on every turn
-//   cost more than it added (see PROGRESS.md), so GSAP alone moves the speaker.
+//   cost more than it added, so GSAP alone moves the speaker.
 // - GSAP plays each moment's entrance on the freshly rendered elements.
 // - app.js re-renders the whole page on every state update, so a running moment
 //   is rebuilt on the new elements and fast-forwarded to where it was, instead

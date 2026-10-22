@@ -9,7 +9,7 @@
 //   sound on review clips).
 
 const KEY = "alibi.sound";
-// Master level. Peaks land around -20 dBFS; see PROGRESS.md for measurements.
+// Master level. Peaks land around -20 dBFS.
 const MASTER = 0.32;
 const MUSIC = 0.16; // relative to master
 
