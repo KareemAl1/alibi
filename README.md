@@ -45,4 +45,4 @@ npm run test:browser  # four-player Chrome run
 
 Rooms live in memory, so Alibi runs as a single long-running Node process with WebSocket support. `render.yaml` sets up one Render web service. In production, set `NODE_ENV=production` and `PUBLIC_ORIGIN` to the site's HTTPS address.
 
-Made by [Kareem Alwan](https://kareemalwan.vercel.app). The interrogation-table illustration is generated artwork; the avatars and interface are original.
+The interrogation-table illustration is generated artwork; the avatars and interface are original.
