@@ -102,6 +102,24 @@ export async function createAlibiServer({
   });
   app.use(express.json({ limit: "4kb" }));
   app.get("/api/health", (_req, res) => res.json({ ok: true }));
+  // Diagnostic, off unless DEBUG_CLIENT_IP=1: shows a caller how their own
+  // request reached the server (forwarding headers and the TCP peer), to pick
+  // the right client-address source behind a hosting proxy. Turn it off again
+  // once the setting is confirmed.
+  if (process.env.DEBUG_CLIENT_IP === "1")
+    app.get("/api/debug/client-ip", (req, res) =>
+      res.json({
+        peer: req.socket?.remoteAddress,
+        forwardedFor: String(req.headers["x-forwarded-for"] || "")
+          .split(",")
+          .map((part) => part.trim())
+          .filter(Boolean),
+        cfConnectingIp: req.headers["cf-connecting-ip"] || null,
+        trueClientIp: req.headers["true-client-ip"] || null,
+        xRealIp: req.headers["x-real-ip"] || null,
+        usedForRateLimit: clientAddress(req),
+      }),
+    );
   app.post("/api/session", (req, res) => {
     if (!sameOrigin(req))
       return res
