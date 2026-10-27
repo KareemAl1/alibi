@@ -772,6 +772,33 @@ test("behind one trusted proxy, separate clients get separate buckets and spoofe
   assert.equal((await post({ "X-Forwarded-For": "203.0.113.2" })).status, 200);
 });
 
+test("with CLIENT_IP_HEADER, the edge's client header picks the bucket and X-Forwarded-For is ignored", async (t) => {
+  const { post, burst } = await sessionServer(t, {
+    trustProxyHops: 2,
+    clientIpHeader: "cf-connecting-ip",
+  });
+  const statuses = [];
+  for (let i = 0; i < 60; i++)
+    statuses.push(
+      (
+        await post({
+          "CF-Connecting-IP": "203.0.113.7",
+          "X-Forwarded-For": `198.51.100.${i}, 172.71.0.${i}`,
+        })
+      ).status,
+    );
+  assert.deepEqual(new Set(statuses), new Set([200]));
+  assert.equal(
+    (await post({ "CF-Connecting-IP": "203.0.113.7" })).status,
+    429,
+  );
+  assert.equal((await post({ "CF-Connecting-IP": "203.0.113.8" })).status, 200);
+  await assert.rejects(
+    createAlibiServer({ clientIpHeader: "x-forwarded-for" }),
+    /CLIENT_IP_HEADER/,
+  );
+});
+
 test("returning players are limited per session, not by a shared network address", async (t) => {
   const { post, burst } = await sessionServer(t);
   const returning = await post();

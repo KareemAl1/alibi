@@ -20,6 +20,10 @@ export async function createAlibiServer({
     .replace(/\/+$/, "") || undefined,
   secure = process.env.NODE_ENV === "production",
   trustProxyHops = Number(process.env.TRUST_PROXY_HOPS || 0),
+  // A header the hosting edge always overwrites with the real client address
+  // (Cloudflare sets CF-Connecting-IP). Only set this when every request must
+  // pass through that edge, or clients could forge it.
+  clientIpHeader = (process.env.CLIENT_IP_HEADER || "").trim().toLowerCase(),
 } = {}) {
   if (secure && (!origin || !origin.startsWith("https://")))
     throw new Error("Production requires an HTTPS PUBLIC_ORIGIN.");
@@ -29,6 +33,13 @@ export async function createAlibiServer({
     trustProxyHops > 5
   )
     throw new Error("TRUST_PROXY_HOPS must be a whole number from 0 to 5.");
+  if (
+    clientIpHeader &&
+    !["cf-connecting-ip", "true-client-ip", "x-real-ip"].includes(clientIpHeader)
+  )
+    throw new Error(
+      "CLIENT_IP_HEADER must be cf-connecting-ip, true-client-ip or x-real-ip.",
+    );
   const app = express();
   const httpServer = createServer(app);
   const sessions = new Map();
@@ -54,6 +65,11 @@ export async function createAlibiServer({
   // from the right of [...forwarded, peer]. Entries further left are supplied by
   // the client and never trusted.
   const clientAddress = (req) => {
+    if (clientIpHeader) {
+      const value = String(req.headers[clientIpHeader] || "").trim();
+      if (/^[0-9a-f.:]{2,45}$/i.test(value))
+        return value.replace(/^::ffff:(?=\d+\.\d+\.\d+\.\d+$)/, "");
+    }
     const peer = req.socket?.remoteAddress || "unknown";
     let chain = [peer];
     if (trustProxyHops > 0) {

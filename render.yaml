@@ -21,5 +21,10 @@ services:
       # Render's internal proxy, so the real client is 2 hops from the right.
       - key: TRUST_PROXY_HOPS
         value: "2"
+      # Render's edge is Cloudflare, which overwrites CF-Connecting-IP with the
+      # real client address on every request. Counting X-Forwarded-For hops
+      # did not hold up on the custom domain, so the limiter reads this header.
+      - key: CLIENT_IP_HEADER
+        value: cf-connecting-ip
       # PUBLIC_ORIGIN is not set here: the server uses Render's own
       # RENDER_EXTERNAL_URL. Set PUBLIC_ORIGIN only for a custom domain.
