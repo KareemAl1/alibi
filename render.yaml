@@ -20,8 +20,5 @@ services:
       # count from X-Forwarded-For during the first deploy.
       - key: TRUST_PROXY_HOPS
         value: "1"
-      - key: PUBLIC_ORIGIN
-        fromService:
-          type: web
-          name: alibi
-          envVarKey: RENDER_EXTERNAL_URL
+      # PUBLIC_ORIGIN is not set here: the server uses Render's own
+      # RENDER_EXTERNAL_URL. Set PUBLIC_ORIGIN only for a custom domain.

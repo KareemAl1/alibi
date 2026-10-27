@@ -13,7 +13,11 @@ const publicPath = fileURLToPath(new URL("../public", import.meta.url));
 
 export async function createAlibiServer({
   store = new GameStore(),
-  origin = process.env.PUBLIC_ORIGIN,
+  // PUBLIC_ORIGIN wins; on Render the service's own HTTPS address is provided
+  // at runtime as RENDER_EXTERNAL_URL, so no Blueprint reference is needed.
+  origin = (process.env.PUBLIC_ORIGIN || process.env.RENDER_EXTERNAL_URL || "")
+    .trim()
+    .replace(/\/+$/, "") || undefined,
   secure = process.env.NODE_ENV === "production",
   trustProxyHops = Number(process.env.TRUST_PROXY_HOPS || 0),
 } = {}) {
